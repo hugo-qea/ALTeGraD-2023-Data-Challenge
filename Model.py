@@ -1,7 +1,7 @@
 from torch import nn
 import torch.nn.functional as F
 
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GAT, VGAE
 from torch_geometric.nn import global_mean_pool
 from transformers import AutoModel
 
@@ -33,6 +33,35 @@ class GraphEncoder(nn.Module):
         x = self.mol_hidden2(x)
         return x
     
+    
+class AttentionEncoder(nn.Module):
+    def __init__(self, nout, nhid, attention_hidden, n_in, dropout):
+        super(AttentionEncoder, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.attention_hidden = attention_hidden
+        self.n_hidden = nhid
+        self.n_out = nout
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(self.attention_hidden, self.n_out)
+        #self.fc2 = nn.Linear(self.n_hidden, self.n_out)
+        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=4, v2=True)
+
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        x = self.Attention(x, edge_index)
+        x = self.relu(x)
+        x = global_mean_pool(x, batch)
+        x = self.fc1(x)
+        x = self.relu(x)
+        #x = self.fc2(x)
+        
+        return x
+    
+
+    
 class TextEncoder(nn.Module):
     def __init__(self, model_name):
         super(TextEncoder, self).__init__()
@@ -47,6 +76,23 @@ class Model(nn.Module):
     def __init__(self, model_name, num_node_features, nout, nhid, graph_hidden_channels):
         super(Model, self).__init__()
         self.graph_encoder = GraphEncoder(num_node_features, nout, nhid, graph_hidden_channels)
+        self.text_encoder = TextEncoder(model_name)
+        
+    def forward(self, graph_batch, input_ids, attention_mask):
+        graph_encoded = self.graph_encoder(graph_batch)
+        text_encoded = self.text_encoder(input_ids, attention_mask)
+        return graph_encoded, text_encoded
+    
+    def get_text_encoder(self):
+        return self.text_encoder
+    
+    def get_graph_encoder(self):
+        return self.graph_encoder
+    
+class ModelAttention(nn.Module):
+    def __init__(self, model_name, n_in, nout, nhid, attention_hidden, dropout):
+        super(ModelAttention, self).__init__()
+        self.graph_encoder = AttentionEncoder(nout, nhid, attention_hidden, n_in, dropout)
         self.text_encoder = TextEncoder(model_name)
         
     def forward(self, graph_batch, input_ids, attention_mask):
