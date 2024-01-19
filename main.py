@@ -27,7 +27,7 @@ gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
 val_dataset = GraphTextDataset(root='./data/', gt=gt, split='val', tokenizer=tokenizer)
 train_dataset = GraphTextDataset(root='./data/', gt=gt, split='train', tokenizer=tokenizer)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 nb_epochs = 50
@@ -38,9 +38,9 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 #model = Model(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
-model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
+#model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
-#model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=300, attention_hidden=300, dropout=0.3) # nout = bert model hidden dim
+model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 model.to(device)
 #summary(model, (300,))

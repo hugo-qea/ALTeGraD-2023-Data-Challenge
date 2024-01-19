@@ -88,25 +88,22 @@ class SAGEEncoder(nn.Module):
         return x
     
 class GATConvEncoder(nn.Module):
-    def __init__(self, nout, nhid, attention_hidden, n_in, dropout):
+    def __init__(self, nout, nhid, n_heads, n_in, dropout):
         super(GATConvEncoder, self).__init__()
         self.dropout = dropout
         self.n_in = n_in
-        self.attention_hidden = attention_hidden
         self.n_hidden = nhid
+        self.n_heads = n_heads
         self.n_out = nout
-        self.relu = nn.ReLU()
+        self.relu = nn.LeakyReLU()
         self.fc1 = nn.Linear(self.n_hidden, self.n_out)
-        self.Attention = GATConv(in_channels=self.n_in, out_channels=self.n_hidden, heads=1, dropout=self.dropout)
-        #self.Attention2 = GATConv(in_channels=self.n_hidden*2, out_channels=self.attention_hidden, heads=1, dropout=self.dropout)
+        self.Attention = GATConv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout)
     def forward(self, graph_batch):
         x = graph_batch.x
         edge_index = graph_batch.edge_index
         batch = graph_batch.batch
         x = self.Attention(x, edge_index)
         x = self.relu(x)
-        #x = self.Attention2(x, edge_index)
-        #x = self.relu(x)
         x = global_mean_pool(x, batch)
         x = self.fc1(x)
         #x = self.relu(x)
@@ -202,9 +199,9 @@ class ModelSAGE(nn.Module):
         return self.graph_encoder
     
 class ModelGATConv(nn.Module):
-    def __init__(self, model_name, n_in, nout, nhid, attention_hidden, dropout):
+    def __init__(self, model_name, n_in, nout, nhid, n_heads, dropout):
         super(ModelGATConv, self).__init__()
-        self.graph_encoder = GATConvEncoder(nout, nhid, attention_hidden, n_in, dropout)
+        self.graph_encoder = GATConvEncoder(nout, nhid, n_heads, n_in, dropout)
         self.text_encoder = TextEncoder(model_name)
         
     def forward(self, graph_batch, input_ids, attention_mask):
