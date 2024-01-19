@@ -1,7 +1,7 @@
 from dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.data import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
-from Model import Model, ModelAttention, ModelSAGE
+from Model import Model, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP
 import numpy as np
 from transformers import AutoTokenizer
 import torch
@@ -19,6 +19,8 @@ def contrastive_loss(v1, v2):
 
 model_name = 'distilbert-base-uncased'
 model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
+#model_name = 'BAAI/bge-reranker-large'
+#model_name = 'BAAI/llm-embedder'
 #model_name = 'facebook/fasttext-language-identification'
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
@@ -28,7 +30,7 @@ train_dataset = GraphTextDataset(root='./data/', gt=gt, split='train', tokenizer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-nb_epochs = 120
+nb_epochs = 50
 batch_size = 32
 learning_rate = 1e-5
 
@@ -36,8 +38,10 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 #model = Model(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
-#model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
-model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
+model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
+#model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
+#model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=300, attention_hidden=300, dropout=0.3) # nout = bert model hidden dim
+#model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 model.to(device)
 #summary(model, (300,))
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,

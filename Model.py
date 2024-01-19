@@ -1,8 +1,9 @@
 from torch import nn
 import torch.nn.functional as F
 
-from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE
-from torch_geometric.nn import global_mean_pool
+from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE, AttentiveFP
+from torch_geometric.nn.conv import GATConv
+from torch_geometric.nn import global_mean_pool, global_add_pool
 from transformers import AutoModel
 
 
@@ -43,9 +44,9 @@ class AttentionEncoder(nn.Module):
         self.n_hidden = nhid
         self.n_out = nout
         self.relu = nn.ReLU()
-        self.fc1 = nn.Linear(self.attention_hidden, self.n_out)
-        #self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=4, v2=True)
+        self.fc1 = nn.Linear(self.n_hidden, self.n_hidden)
+        self.fc2 = nn.Linear(self.n_hidden, self.n_out)
+        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=1, v2=True)
 
     def forward(self, graph_batch):
         x = graph_batch.x
@@ -56,7 +57,7 @@ class AttentionEncoder(nn.Module):
         x = global_mean_pool(x, batch)
         x = self.fc1(x)
         x = self.relu(x)
-        #x = self.fc2(x)
+        x = self.fc2(x)
         
         return x
     
@@ -70,9 +71,9 @@ class SAGEEncoder(nn.Module):
         self.n_hidden = nhid
         self.n_out = nout
         self.relu = nn.ReLU()
-        self.fc1 = nn.Linear(self.attention_hidden, self.n_hidden)
+        self.fc1 = nn.Linear(self.sage_hidden, self.n_hidden)
         self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.SAGE = GraphSAGE(in_channels=self.n_in, hidden_channels = self.sage_hidden, out_channels=self.n_hidden, dropout=self.dropout)
+        self.SAGE = GraphSAGE(in_channels=self.n_in, hidden_channels = self.sage_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=1)
     def forward(self, graph_batch):
         x = graph_batch.x
         edge_index = graph_batch.edge_index
@@ -83,6 +84,55 @@ class SAGEEncoder(nn.Module):
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
+        
+        return x
+    
+class GATConvEncoder(nn.Module):
+    def __init__(self, nout, nhid, attention_hidden, n_in, dropout):
+        super(GATConvEncoder, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.attention_hidden = attention_hidden
+        self.n_hidden = nhid
+        self.n_out = nout
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(self.n_hidden, self.n_out)
+        self.Attention = GATConv(in_channels=self.n_in, out_channels=self.n_hidden, heads=1, dropout=self.dropout)
+        #self.Attention2 = GATConv(in_channels=self.n_hidden*2, out_channels=self.attention_hidden, heads=1, dropout=self.dropout)
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        x = self.Attention(x, edge_index)
+        x = self.relu(x)
+        #x = self.Attention2(x, edge_index)
+        #x = self.relu(x)
+        x = global_mean_pool(x, batch)
+        x = self.fc1(x)
+        #x = self.relu(x)
+        
+        return x
+    
+class AttentiveFPEncoder(nn.Module):
+    def __init__(self, nout, nhid, attention_hidden, n_in, dropout):
+        super(AttentiveFPEncoder, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.attention_hidden = attention_hidden
+        self.n_hidden = nhid
+        self.n_out = nout
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(self.n_hidden, self.n_out)
+        self.Attention = AttentiveFP(in_channels=self.n_in,hidden_channels=self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout,num_layers=4, num_timesteps=16, edge_dim=1)
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        x = self.Attention(x, edge_index)
+        x = self.relu(x)
+        x = global_mean_pool(x, batch)
+        x = self.fc1(x)
+        #x = self.relu(x)
         
         return x
     
@@ -138,6 +188,40 @@ class ModelSAGE(nn.Module):
     def __init__(self, model_name, n_in, nout, nhid, sage_hidden, dropout):
         super(ModelSAGE, self).__init__()
         self.graph_encoder = SAGEEncoder(nout, nhid, sage_hidden, n_in, dropout)
+        self.text_encoder = TextEncoder(model_name)
+        
+    def forward(self, graph_batch, input_ids, attention_mask):
+        graph_encoded = self.graph_encoder(graph_batch)
+        text_encoded = self.text_encoder(input_ids, attention_mask)
+        return graph_encoded, text_encoded
+    
+    def get_text_encoder(self):
+        return self.text_encoder
+    
+    def get_graph_encoder(self):
+        return self.graph_encoder
+    
+class ModelGATConv(nn.Module):
+    def __init__(self, model_name, n_in, nout, nhid, attention_hidden, dropout):
+        super(ModelGATConv, self).__init__()
+        self.graph_encoder = GATConvEncoder(nout, nhid, attention_hidden, n_in, dropout)
+        self.text_encoder = TextEncoder(model_name)
+        
+    def forward(self, graph_batch, input_ids, attention_mask):
+        graph_encoded = self.graph_encoder(graph_batch)
+        text_encoded = self.text_encoder(input_ids, attention_mask)
+        return graph_encoded, text_encoded
+    
+    def get_text_encoder(self):
+        return self.text_encoder
+    
+    def get_graph_encoder(self):
+        return self.graph_encoder
+
+class ModelAttentiveFP(nn.Module):
+    def __init__(self, model_name, n_in, nout, nhid, attention_hidden, dropout):
+        super(ModelAttentiveFP, self).__init__()
+        self.graph_encoder = AttentiveFPEncoder(nout, nhid, attention_hidden, n_in, dropout)
         self.text_encoder = TextEncoder(model_name)
         
     def forward(self, graph_batch, input_ids, attention_mask):
