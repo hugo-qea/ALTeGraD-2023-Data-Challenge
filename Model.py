@@ -46,7 +46,7 @@ class AttentionEncoder(nn.Module):
         self.relu = nn.ReLU()
         self.fc1 = nn.Linear(self.n_hidden, self.n_hidden)
         self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=1, v2=True)
+        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=4, v2=True)
 
     def forward(self, graph_batch):
         x = graph_batch.x
@@ -73,7 +73,7 @@ class SAGEEncoder(nn.Module):
         self.relu = nn.ReLU()
         self.fc1 = nn.Linear(self.sage_hidden, self.n_hidden)
         self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.SAGE = GraphSAGE(in_channels=self.n_in, hidden_channels = self.sage_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=1)
+        self.SAGE = GraphSAGE(in_channels=self.n_in, hidden_channels = self.sage_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=4)
     def forward(self, graph_batch):
         x = graph_batch.x
         edge_index = graph_batch.edge_index

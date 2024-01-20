@@ -10,6 +10,7 @@ from torchsummary import summary
 import time
 import os
 import pandas as pd
+from torch.utils.tensorboard import SummaryWriter
 
 CE = torch.nn.CrossEntropyLoss()
 def contrastive_loss(v1, v2):
@@ -30,17 +31,17 @@ train_dataset = GraphTextDataset(root='./data/', gt=gt, split='train', tokenizer
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
-nb_epochs = 50
+nb_epochs = 5
 batch_size = 32
-learning_rate = 1e-5
+learning_rate = 5e-5
 
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 #model = Model(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
-#model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
+model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
-model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
+#model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 model.to(device)
 #summary(model, (300,))
@@ -55,6 +56,7 @@ count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
+writer = SummaryWriter(comment='-lr'+str(learning_rate)+'-batch_size'+str(batch_size)+'-nhid'+str(1024)+'-attention_hidden'+str(2048)+'-dropout'+str(0.3)+'-n_layers'+str(8))
 
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
@@ -81,6 +83,7 @@ for i in range(nb_epochs):
             print("Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(count_iter,
                                                                         time2 - time1, loss/printEvery))
             losses.append(loss)
+            writer.add_scalar("Loss/train", loss/printEvery, count_iter)
             loss = 0 
     model.eval()       
     val_loss = 0        
@@ -97,6 +100,7 @@ for i in range(nb_epochs):
         val_loss += current_loss.item()
     best_validation_loss = min(best_validation_loss, val_loss)
     print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: ', str(val_loss/len(val_loader)) )
+    writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
     if best_validation_loss==val_loss:
         print('validation loss improoved saving checkpoint...')
         save_path = os.path.join('./', 'model'+str(i)+'.pt')
@@ -109,6 +113,8 @@ for i in range(nb_epochs):
         }, save_path)
         print('checkpoint saved to: {}'.format(save_path))
 
+writer.flush()
+writer.close()
 
 print('loading best model...')
 checkpoint = torch.load(save_path)
