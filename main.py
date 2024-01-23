@@ -1,7 +1,7 @@
 from dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.data import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
-from Model import Model, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP
+from Model import Model, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP
 import numpy as np
 from transformers import AutoTokenizer
 import torch
@@ -18,11 +18,15 @@ def contrastive_loss(v1, v2):
   labels = torch.arange(logits.shape[0], device=v1.device)
   return CE(logits, labels) + CE(torch.transpose(logits, 0, 1), labels)
 
-model_name = 'distilbert-base-uncased'
+#model_name = 'distilbert-base-uncased'
 model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'BAAI/bge-reranker-large'
 #model_name = 'BAAI/llm-embedder'
 #model_name = 'facebook/fasttext-language-identification'
+#model_name = 'facebook/bart-large-cnn'
+#model_name = 'lucadiliello/bart-small'
+#model_name = 'bheshaj/bart-large-cnn-small-xsum-5epochs'
+model_name = 'google/pegasus-large'
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
 val_dataset = GraphTextDataset(root='./data/', gt=gt, split='val', tokenizer=tokenizer)
@@ -32,7 +36,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 nb_epochs = 5
-batch_size = 32
+batch_size = 16
 learning_rate = 5e-5
 
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
@@ -43,6 +47,8 @@ model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, att
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
+model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 model.to(device)
 #summary(model, (300,))
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
@@ -56,7 +62,8 @@ count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
-writer = SummaryWriter(comment='-lr'+str(learning_rate)+'-batch_size'+str(batch_size)+'-nhid'+str(1024)+'-attention_hidden'+str(2048)+'-dropout'+str(0.3)+'-n_layers'+str(8))
+writer = SummaryWriter(comment='-lr'+str(learning_rate)+'-batch_size'+str(batch_size)+'test_8_layers'+
+                       model_name)
 
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
