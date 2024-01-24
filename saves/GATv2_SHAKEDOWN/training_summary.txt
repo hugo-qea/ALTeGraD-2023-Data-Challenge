@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2_SHAKEDOWN
+Timestamp: 2024-01-24 18:19:27.115452
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 3
+Batch size: 16
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 869.6467094421387
+Best validation loss: 0.45547340047806684
+Training loss mean over last 500 iterations: 0.42634023329615595
+================
