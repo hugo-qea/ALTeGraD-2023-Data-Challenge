@@ -44,9 +44,9 @@ class AttentionEncoder(nn.Module):
         self.n_hidden = nhid
         self.n_out = nout
         self.relu = nn.ReLU()
-        #self.fc1 = nn.Linear(self.n_hidden, self.n_hidden)
+        self.fc1 = nn.Linear(self.n_hidden, self.n_hidden)
         self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=8, v2=True)
+        self.Attention = GAT(in_channels=self.n_in, hidden_channels = self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=4, v2=True)
 
     def forward(self, graph_batch):
         x = graph_batch.x
@@ -55,8 +55,8 @@ class AttentionEncoder(nn.Module):
         x = self.Attention(x, edge_index)
         x = self.relu(x)
         x = global_mean_pool(x, batch)
-        #x = self.fc1(x)
-        #x = self.relu(x)
+        x = self.fc1(x)
+        x = self.relu(x)
         x = self.fc2(x)
         
         return x
@@ -151,7 +151,9 @@ class GATPerso(nn.Module):
         x = graph_batch.x
         edge_index = graph_batch.edge_index
         batch = graph_batch.batch
-        x = self.Attention(x, edge_index)
+        x = self.conv1(x, edge_index)
+        x = self.relu(x)
+        x = self.conv2(x, edge_index)
         x = self.relu(x)
         x = global_mean_pool(x, batch)
         x = self.fc1(x)
@@ -169,10 +171,10 @@ class GATwMLP(nn.Module):
         self.n_heads = n_heads
         self.n_out = nout
         self.relu = nn.LeakyReLU()
-        self.outer = nn.MLP(self.n_hidden, self.n_out, num_layers=2)
-        self.conv1 = GATConv(in_channels=self.n_hidden, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout)
-        self.conv2 = GATConv(in_channels=self.n_heads * self.n_hidden, out_channels=self.n_hidden, heads=1, dropout=self.dropout)
-        self.inner = nn.MLP(in_channels=self.n_in, out_channels=self.n_hidden, num_layers=2)
+        self.outer = MLP(in_channels=self.n_hidden, hidden_channels=self.n_hidden, out_channels=self.n_out, num_layers=2)
+        self.conv1 = GATv2Conv(in_channels=self.n_hidden, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout)
+        self.conv2 = GATv2Conv(in_channels=self.n_heads * self.n_hidden, out_channels=self.n_hidden, heads=1, dropout=self.dropout)
+        self.inner = MLP(in_channels=self.n_in, hidden_channels=self.n_hidden,out_channels=self.n_hidden,  num_layers=2)
         
     def forward(self, graph_batch):
         x = graph_batch.x

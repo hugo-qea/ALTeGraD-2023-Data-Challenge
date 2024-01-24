@@ -26,34 +26,37 @@ model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'facebook/bart-large-cnn'
 #model_name = 'lucadiliello/bart-small'
 #model_name = 'bheshaj/bart-large-cnn-small-xsum-5epochs'
-model_name = 'google/pegasus-large'
+#model_name = 'google/pegasus-large'
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
 val_dataset = GraphTextDataset(root='./data/', gt=gt, split='val', tokenizer=tokenizer)
 train_dataset = GraphTextDataset(root='./data/', gt=gt, split='train', tokenizer=tokenizer)
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 print(device)
 
-nb_epochs = 5
-batch_size = 16
-learning_rate = 5e-5
+nb_epochs = 80
+batch_size = 150
+learning_rate = 1e-4
 
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 #model = Model(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
-model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
+#model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
-model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 model.to(device)
 #summary(model, (300,))
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.999),
                                 weight_decay=0.01)
+save_path = os.path.join('./', 'GATv2wMLP_model_12.pt')
+checkpoint = torch.load(save_path)
+model.load_state_dict(checkpoint['model_state_dict'])
 
 epoch = 0
 loss = 0
@@ -62,9 +65,7 @@ count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
-writer = SummaryWriter(comment='-lr'+str(learning_rate)+'-batch_size'+str(batch_size)+'test_8_layers'+
-                       model_name)
-
+writer = SummaryWriter(comment='GATv2MLP_'+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size))
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
@@ -110,7 +111,7 @@ for i in range(nb_epochs):
     writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
     if best_validation_loss==val_loss:
         print('validation loss improoved saving checkpoint...')
-        save_path = os.path.join('./', 'model'+str(i)+'.pt')
+        save_path = os.path.join('./', 'GATv2wMLP_model_'+str(13+i)+'.pt')
         torch.save({
         'epoch': i,
         'model_state_dict': model.state_dict(),
@@ -158,4 +159,4 @@ similarity = cosine_similarity(text_embeddings, graph_embeddings)
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-solution.to_csv('submission.csv', index=False)
+solution.to_csv('GATv2_wMLP_submission.csv', index=False)
