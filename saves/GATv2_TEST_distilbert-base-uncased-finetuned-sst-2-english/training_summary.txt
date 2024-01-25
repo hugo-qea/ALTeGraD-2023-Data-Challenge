@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2_TEST_distilbert-base-uncased-finetuned-sst-2-english
+Timestamp: 2024-01-25 15:01:29.837995
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 16
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1442.3361101150513
+Best validation loss: 0.2846705663127648
+Training loss mean over last 500 iterations: 0.3176243892097846
+================

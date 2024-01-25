@@ -3,9 +3,21 @@ from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, Mode
 from torch.utils.tensorboard import SummaryWriter
 
 
+
+# Reproducibility
+seed = 13
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+#torch.use_deterministic_algorithms(True)
+
+
 # Setup the text encoder
 #model_name = 'distilbert-base-uncased'
-model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
+#model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'BAAI/bge-reranker-large'
 #model_name = 'BAAI/llm-embedder'
 #model_name = 'facebook/fasttext-language-identification'
@@ -13,6 +25,8 @@ model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'lucadiliello/bart-small'
 #model_name = 'bheshaj/bart-large-cnn-small-xsum-5epochs'
 #model_name = 'google/pegasus-large'
+#model_name = 'recobo/chemical-bert-uncased'
+model_name = 'allenai/scibert_scivocab_uncased'
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 
@@ -31,7 +45,7 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 3
+nb_epochs = 5
 batch_size = 16
 learning_rate = 5e-5
 
@@ -48,7 +62,7 @@ model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, att
 #model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + '_SHAKEDOWN'
+MODEL_SURNAME =  model.get_model_surname() + '_TEST_' + model_name
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)
