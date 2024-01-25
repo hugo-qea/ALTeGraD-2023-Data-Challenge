@@ -2,8 +2,9 @@ from torch import nn
 import torch.nn.functional as F
 
 from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE, AttentiveFP, MLP
-from torch_geometric.nn.conv import GATConv, GATv2Conv
+from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv
 from torch_geometric.nn import global_mean_pool, global_add_pool
+from torch_geometric.nn.norm import GraphNorm
 
 
 class GCN(nn.Module):
@@ -84,10 +85,10 @@ class AttentionEncoder(nn.Module):
         self.attention_hidden = attention_hidden
         self.n_hidden = nhid
         self.n_out = nout
-        self.relu = nn.ReLU()
+        self.relu = nn.LeakyReLU()
         self.fc1 = nn.Linear(self.n_hidden, self.n_hidden)
         self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.Attention = GAT(in_channels=self.n_in, hidden_channels=self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=4, v2=True)
+        self.Attention = GAT(in_channels=self.n_in, hidden_channels=self.attention_hidden, out_channels=self.n_hidden, dropout=self.dropout, num_layers=2, v2=True, norm=GraphNorm(in_channels = self.n_hidden))
 
     def forward(self, graph_batch):
         """
@@ -404,4 +405,62 @@ class GATwMLP(nn.Module):
             
             return x
         
+class Transformer(nn.Module):
+    """
+    Transformer module.
+
+    Args:
+        nout (int): Number of output features.
+        nhid (int): Number of hidden features.
+        n_heads (int): Number of attention heads.
+        n_in (int): Number of input features.
+        dropout (float): Dropout rate.
+
+    Attributes:
+        dropout (float): Dropout rate.
+        n_in (int): Number of input features.
+        n_hidden (int): Number of hidden features.
+        n_heads (int): Number of attention heads.
+        n_out (int): Number of output features.
+        relu (nn.LeakyReLU): LeakyReLU activation function.
+        fc1 (nn.Linear): Fully connected layer 1.
+        conv1 (GATv2Conv): GATv2Conv layer 1.
+        conv2 (GATv2Conv): GATv2Conv layer 2.
+        fc2 (nn.Linear): Fully connected layer 2.
+    """
+
+    def __init__(self, nout, nhid, n_heads, n_in, dropout):
+        super(Transformer, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.n_hidden = nhid
+        self.n_heads = n_heads
+        self.n_out = nout
+        self.relu = nn.LeakyReLU()
+        self.fc1 = nn.Linear(self.n_in, self.n_hidden)
+        self.conv = TransformerConv(in_channels=self.n_hidden, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout)
+        self.fc2 = nn.Linear(self.n_hidden * self.n_heads, self.n_out)
+        
+    def forward(self, graph_batch):
+            """
+            Forward pass of the graph encoder model.
+
+            Args:
+                graph_batch (torch_geometric.data.Batch): The input graph batch.
+
+            Returns:
+                torch.Tensor: The output tensor after passing through the encoder.
+            """
+            x = graph_batch.x
+            edge_index = graph_batch.edge_index
+            batch = graph_batch.batch
+            x = self.fc1(x)
+            x = self.relu(x)
+            x = self.conv(x, edge_index)
+            x = self.relu(x)
+            x = global_mean_pool(x, batch)
+            x = self.fc2(x)
+            
+            return x
+            
     

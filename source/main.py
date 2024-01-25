@@ -1,5 +1,5 @@
 from utils import *
-from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, AttentionEncoder
+from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer  
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -30,13 +30,13 @@ torch.backends.cudnn.deterministic = True
 #model_name = 'gokceuludogan/ChemBERTaLM'
 #model_name = 'seyonec/PubChem10M_SMILES_BPE_450k'
 #model_name = 'alvaroalon2/biobert_chemical_ner'
-#model_name = 'jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry'
+model_name = 'jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry'
 #model_name = 'nlpie/tiny-biobert'
-model_name = 'dmis-lab/biobert-v1.1'
-model_name = 'microsoft/deberta-v3-base'
-model_name = 'DeepChem/ChemBERTa-10M-MLM'
-model_name = 'DeepChem/SmilesTokenizer_PubChem_1M'
-model_name = 'unikei/bert-base-smiles'
+#model_name = 'dmis-lab/biobert-v1.1'
+#model_name = 'microsoft/deberta-v3-base'
+#model_name = 'DeepChem/ChemBERTa-10M-MLM'
+#model_name = 'DeepChem/SmilesTokenizer_PubChem_1M'
+#model_name = 'unikei/bert-base-smiles'
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -56,24 +56,25 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 5
-batch_size = 16
-learning_rate = 5e-5
+nb_epochs = 120
+batch_size = 100
+learning_rate = 1e-4
 
 # Setup the batch loaders
 val_loader = TorchGeoDataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 #model = Baseline(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
-model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=2048, dropout=0.3) # nout = bert model hidden dim
+#model = ModelAttention(model_name=model_name, n_in=300, nout=768, nhid=1024, attention_hidden=1024, dropout=0.6) # nout = bert model hidden dim
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + '_TEST_' + model_name
+MODEL_SURNAME =  model.get_model_surname() + '_TEST_' + ''
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)

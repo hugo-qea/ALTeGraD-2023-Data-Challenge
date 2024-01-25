@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2_TEST_Graph_Norm
+Timestamp: 2024-01-26 00:24:47.521657
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 32
+Learning rate: 0.0001
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1263.9394245147705
+Best validation loss: 0.4898698060701605
+Training loss mean over last 500 iterations: 0.548282705783844
+================

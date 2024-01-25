@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: Transformer_TEST_
+Timestamp: 2024-01-26 00:52:28.896062
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 32
+Learning rate: 0.0001
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1295.083084344864
+Best validation loss: 0.41390925188058575
+Training loss mean over last 500 iterations: 0.3117460309490561
+================
