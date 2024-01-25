@@ -26,7 +26,18 @@ torch.backends.cudnn.deterministic = True
 #model_name = 'bheshaj/bart-large-cnn-small-xsum-5epochs'
 #model_name = 'google/pegasus-large'
 #model_name = 'recobo/chemical-bert-uncased'
-model_name = 'allenai/scibert_scivocab_uncased'
+#model_name = 'allenai/scibert_scivocab_uncased'
+#model_name = 'gokceuludogan/ChemBERTaLM'
+#model_name = 'seyonec/PubChem10M_SMILES_BPE_450k'
+#model_name = 'alvaroalon2/biobert_chemical_ner'
+#model_name = 'jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry'
+#model_name = 'nlpie/tiny-biobert'
+model_name = 'dmis-lab/biobert-v1.1'
+model_name = 'microsoft/deberta-v3-base'
+model_name = 'DeepChem/ChemBERTa-10M-MLM'
+model_name = 'DeepChem/SmilesTokenizer_PubChem_1M'
+model_name = 'unikei/bert-base-smiles'
+
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 

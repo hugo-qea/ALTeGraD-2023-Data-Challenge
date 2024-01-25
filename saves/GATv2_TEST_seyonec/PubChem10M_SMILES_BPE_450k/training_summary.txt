@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2_TEST_seyonec/PubChem10M_SMILES_BPE_450k
+Timestamp: 2024-01-25 16:32:58.544705
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 16
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1485.0619564056396
+Best validation loss: 0.6759878809469334
+Training loss mean over last 500 iterations: 0.5689022013843059
+================
