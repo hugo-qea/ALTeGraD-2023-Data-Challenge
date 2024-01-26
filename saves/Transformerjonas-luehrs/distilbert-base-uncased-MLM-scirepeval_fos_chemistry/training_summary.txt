@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: Transformerjonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry
+Timestamp: 2024-01-26 11:43:06.716907
+Host: gpu4.enst.fr
+================
+Parameters:
+Number of epochs: 120
+Batch size: 128
+Learning rate: 0.0001
+================
+Hardware:
+GPU found: NVIDIA A100-PCIE-40GB
+GPU memory: 40338.312 MB 
+================
+Training time: 38399.17260169983
+Best validation loss: 0.36728544304004085
+Training loss mean over last 500 iterations: 0.07062096119858324
+================

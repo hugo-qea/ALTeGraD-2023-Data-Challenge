@@ -5,7 +5,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 # Reproducibility
-seed = 13
+seed = 3407
 np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
@@ -37,6 +37,10 @@ model_name = 'jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry'
 #model_name = 'DeepChem/ChemBERTa-10M-MLM'
 #model_name = 'DeepChem/SmilesTokenizer_PubChem_1M'
 #model_name = 'unikei/bert-base-smiles'
+#model_name = 'matr1xx/scibert_scivocab_uncased-finetuned-mol-mlm-0.3'
+#model_name = 'ghadeermobasher/BC5CDR-Chemical-Disease-balanced-BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext'
+#model_name = 'FelixChao/vicuna-7B-chemical'
+#model_name = 'JuIm/SMILES_BERT'
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -46,7 +50,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -57,7 +61,7 @@ else:
 
 # Training hyperparameters
 nb_epochs = 120
-batch_size = 100
+batch_size = 128
 learning_rate = 1e-4
 
 # Setup the batch loaders
@@ -70,11 +74,11 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + '_TEST_' + ''
+MODEL_SURNAME =  model.get_model_surname() + model_name + 'NCELoss'
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)
@@ -115,6 +119,8 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
 # Initialize training
 epoch = 0
 loss = 0
+contrastive = 0
+contrastive_losses = []
 losses = []
 count_iter = 0
 time1 = time.time()
@@ -123,6 +129,7 @@ best_validation_loss = 1000000
 
 # Initialize tensorboard
 writer = SummaryWriter(comment=COMMENT)
+
 
 # Training loop
 
@@ -140,11 +147,13 @@ for i in tqdm(range(nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        current_loss = contrastive_loss(x_graph, x_text)   
+        contrastive_loss_ = contrastive_loss(x_graph, x_text)
+        current_loss = nce_loss(x_graph, x_text, num_neg_samples=13)   
         optimizer.zero_grad()
         current_loss.backward()
         optimizer.step()
         loss += current_loss.item()
+        contrastive += contrastive_loss_.item()
         
         count_iter += 1
         if count_iter % printEvery == 0:
@@ -152,10 +161,14 @@ for i in tqdm(range(nb_epochs)):
             print("Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(count_iter,
                                                                         time2 - time1, loss/printEvery))
             losses.append(loss)
-            writer.add_scalar("Loss/train", loss/printEvery, count_iter)
+            contrastive_losses.append(contrastive)
+            writer.add_scalar("NCELoss/train", loss/printEvery, count_iter)
+            writer.add_scalar("Loss/train", contrastive/printEvery, count_iter)
+            contrastive = 0
             loss = 0 
     model.eval()       
-    val_loss = 0        
+    val_loss = 0
+    contrastive_val_loss_ = 0        
     for batch in val_loader:
         input_ids = batch.input_ids
         batch.pop('input_ids')
@@ -165,11 +178,13 @@ for i in tqdm(range(nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        current_loss = contrastive_loss(x_graph, x_text)   
+        contrastive_val_loss_ = contrastive_loss(x_graph, x_text)
+        current_loss = nce_loss(x_graph, x_text, num_neg_samples=13)   
         val_loss += current_loss.item()
     best_validation_loss = min(best_validation_loss, val_loss)
     print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: ', str(val_loss/len(val_loader)) )
-    writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("NCELoss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("Loss/validation", contrastive_val_loss_/len(val_loader), i)
     if best_validation_loss==val_loss:
         print('validation loss improved saving checkpoint...')
         save_path = os.path.join(SAVE_DIR, 'model_'+str(i)+'.pt')
@@ -220,6 +235,7 @@ f.close()
 # Submission
 
 print('loading best model for submission...')
+#ave_path = os.path.join(SAVE_DIR, 'model_96.pt')
 checkpoint = torch.load(save_path)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()

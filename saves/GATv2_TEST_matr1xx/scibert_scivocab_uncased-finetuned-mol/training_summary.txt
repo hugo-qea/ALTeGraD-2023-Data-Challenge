@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2_TEST_matr1xx/scibert_scivocab_uncased-finetuned-mol
+Timestamp: 2024-01-25 18:18:29.030446
+Host: gpu4.enst.fr
+================
+Parameters:
+Number of epochs: 5
+Batch size: 16
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA A100-PCIE-40GB
+GPU memory: 40338.312 MB 
+================
+Training time: 2611.026310443878
+Best validation loss: 0.3699985817676536
+Training loss mean over last 500 iterations: 0.34698167983256284
+================
