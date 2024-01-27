@@ -1,5 +1,7 @@
 from models.graph_encoder import *
 from transformers import AutoModel
+from sklearn.metrics.pairwise import cosine_similarity
+import torch.nn.functional as F
 
 
 
@@ -31,68 +33,84 @@ class TextEncoder(nn.Module):
         encoded_text = self.bert(input_ids, attention_mask=attention_mask)
         return encoded_text.last_hidden_state[:,0,:]
     
-    
-    
 class Model(nn.Module):
-    def __init__(self, model_name):
-        """
-        Initializes a Model object.
+        def __init__(self, model_name):
+            """
+            Initializes a Model object.
 
-        Args:
-            model_name (str): The name of the pretrained text encoder.
+            Args:
+                model_name (str): The name of the pretrained text encoder.
 
-        """
-        super(Model, self).__init__()
-        self.graph_encoder = None
-        self.text_encoder = TextEncoder(model_name)
+            """
+            super(Model, self).__init__()
+            self.graph_encoder = None
+            self.text_encoder = TextEncoder(model_name)
+            
+        def forward(self, graph_batch, input_ids, attention_mask):
+            """
+            Performs a forward pass through the model.
+
+            Args:
+                graph_batch: The input graph batch.
+                input_ids: The input text IDs.
+                attention_mask: The attention mask for the input text.
+
+            Returns:
+                graph_encoded: The encoded graph.
+                text_encoded: The encoded text.
+
+            """
+            graph_encoded = self.graph_encoder(graph_batch)
+            text_encoded = self.text_encoder(input_ids, attention_mask)
+            return graph_encoded, text_encoded
         
-    def forward(self, graph_batch, input_ids, attention_mask):
-        """
-        Performs a forward pass through the model.
+        def get_text_encoder(self):
+            """
+            Returns the text encoder of the model.
 
-        Args:
-            graph_batch: The input graph batch.
-            input_ids: The input text IDs.
-            attention_mask: The attention mask for the input text.
+            Returns:
+                text_encoder: The text encoder.
 
-        Returns:
-            graph_encoded: The encoded graph.
-            text_encoded: The encoded text.
+            """
+            return self.text_encoder
+        
+        def get_graph_encoder(self):
+            """
+            Returns the graph encoder of the model.
 
-        """
-        graph_encoded = self.graph_encoder(graph_batch)
-        text_encoded = self.text_encoder(input_ids, attention_mask)
-        return graph_encoded, text_encoded
-    
-    def get_text_encoder(self):
-        """
-        Returns the text encoder of the model.
+            Returns:
+                graph_encoder: The graph encoder.
 
-        Returns:
-            text_encoder: The text encoder.
+            """
+            return self.graph_encoder
+        
+        def get_model_surname(self):
+            """
+            Gets the surname of the model.
 
-        """
-        return self.text_encoder
-    
-    def get_graph_encoder(self):
-        """
-        Returns the graph encoder of the model.
+            Returns:
+                model_surname: The surname of the model.
 
-        Returns:
-            graph_encoder: The graph encoder.
+            """
+            pass
+        
+        def predict(self, graph_batch, input_ids, attention_mask):
+            """
+            Predicts the embedding using cosine similarity.
 
-        """
-        return self.graph_encoder
-    
-    def get_model_surname(self):
-        """
-        Gets the surname of the model.
+            Args:
+                graph_batch: The input graph batch.
+                input_ids: The input text IDs.
+                attention_mask: The attention mask for the input text.
 
-        Returns:
-            model_surname: The surname of the model.
+            Returns:
+                similarity: The cosine similarity between the graph and text embeddings.
 
-        """
-        pass
+            """
+            graph_encoded, text_encoded = self.forward(graph_batch, input_ids, attention_mask)
+            similarity = F.cosine_similarity(graph_encoded, text_encoded)
+            return similarity
+
 
     
 class Baseline(Model):
@@ -198,3 +216,27 @@ class ModelTransformer(Model):
 
     def get_model_surname(self):
         return 'Transformer'
+    
+class ModelGPS(Model):
+    def __init__(self, model_name, n_in, nout, nhid, n_heads, dropout):
+        super(ModelGPS, self).__init__(model_name=model_name)
+        self.graph_encoder = GPS(nout, nhid, n_heads, n_in, dropout)
+
+    def get_model_surname(self):
+        return 'GPS'
+    
+class ModelSuperGAT(Model):
+    def __init__(self, model_name, n_in, nout, nhid, n_heads, dropout):
+        super(ModelSuperGAT, self).__init__(model_name=model_name)
+        self.graph_encoder = SuperGAT(nout, nhid, n_heads, n_in, dropout)
+
+    def get_model_surname(self):
+        return 'SuperGAT'
+    
+class ModelVGAE(Model):
+    def __init__(self, model_name, n_in, nout, nhid, n_heads, dropout):
+        super(ModelVGAE, self).__init__(model_name=model_name)
+        self.graph_encoder = VGAEncoder(nout, nhid,n_in, dropout)
+
+    def get_model_surname(self):
+        return 'VGAE'

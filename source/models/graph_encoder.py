@@ -1,9 +1,9 @@
 from torch import nn
 import torch.nn.functional as F
 
-from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE, AttentiveFP, MLP
-from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv
-from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool
+from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE, AttentiveFP, MLP, Node2Vec
+from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv, GPSConv, MessagePassing, GCNConv
+from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool, SuperGATConv
 from torch_geometric.nn.norm import GraphNorm
 
 
@@ -459,5 +459,161 @@ class Transformer(nn.Module):
             x = self.fc2(x)
             
             return x
+        
+class GPS(nn.Module):
+    """
+    Graph Positional System (GPS) module.
+
+    Args:
+        nout (int): Number of output features.
+        nhid (int): Number of hidden features.
+        n_heads (int): Number of attention heads.
+        n_in (int): Number of input features.
+        dropout (float): Dropout rate.
+
+    Attributes:
+        dropout (float): Dropout rate.
+        n_in (int): Number of input features.
+        n_hidden (int): Number of hidden features.
+        n_heads (int): Number of attention heads.
+        n_out (int): Number of output features.
+        relu (nn.LeakyReLU): LeakyReLU activation function.
+        fc1 (nn.Linear): Fully connected layer 1.
+        conv1 (GATv2Conv): GATv2Conv layer 1.
+        conv2 (GATv2Conv): GATv2Conv layer 2.
+        fc2 (nn.Linear): Fully connected layer 2.
+    """
+
+    def __init__(self, nout, nhid, n_heads, n_in, dropout):
+        super(GPS, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.n_hidden = nhid
+        self.n_heads = n_heads
+        self.n_out = nout
+        self.relu = nn.LeakyReLU()
+        self.messagePassing = MessagePassing()
+        self.conv = GPSConv(channels=self.n_in, conv=self.messagePassing, act=self.relu,heads=self.n_heads)
+        self.fc2 = nn.Linear(self.n_hidden * self.n_heads, self.n_out)
+        
+    def forward(self, graph_batch):
+            """
+            Forward pass of the graph encoder model.
+
+            Args:
+                graph_batch (torch_geometric.data.Batch): The input graph batch.
+
+            Returns:
+                torch.Tensor: The output tensor after passing through the encoder.
+            """
+            x = graph_batch.x
+            edge_index = graph_batch.edge_index
+            batch = graph_batch.batch
+            x = self.conv(x, edge_index)
+            x = self.relu(x)
+            x = global_mean_pool(x, batch)
+            x = self.fc2(x)
             
+            return x
+
+class SuperGAT(nn.Module):
+    """
+    SuperGAT module.
+
+    Args:
+        nout (int): Number of output features.
+        nhid (int): Number of hidden features.
+        n_heads (int): Number of attention heads.
+        n_in (int): Number of input features.
+        dropout (float): Dropout rate.
+
+    Attributes:
+        dropout (float): Dropout rate.
+        n_in (int): Number of input features.
+        n_hidden (int): Number of hidden features.
+        n_heads (int): Number of attention heads.
+        n_out (int): Number of output features.
+        relu (nn.LeakyReLU): LeakyReLU activation function.
+        fc1 (nn.Linear): Fully connected layer 1.
+        conv1 (GATv2Conv): GATv2Conv layer 1.
+        conv2 (GATv2Conv): GATv2Conv layer 2.
+        fc2 (nn.Linear): Fully connected layer 2.
+    """
+
+    def __init__(self, nout, nhid, n_heads, n_in, dropout):
+        super(SuperGAT, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.n_hidden = nhid
+        self.n_heads = n_heads
+        self.n_out = nout
+        self.relu = nn.LeakyReLU()
+        self.conv1 = SuperGATConv(in_channels=self.n_hidden, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout, is_undirected=True)
+        self.conv2 = SuperGATConv(in_channels=self.n_heads * self.n_hidden, out_channels=self.n_hidden, heads=1, dropout=self.dropout, is_undirected=True)
+        self.fc2 = nn.Linear(self.n_hidden, self.n_out)
+        self.fc1 = nn.Linear(self.n_in, self.n_hidden)
+        
+    def forward(self, graph_batch):
+            """
+            Forward pass of the graph encoder model.
+
+            Args:
+                graph_batch (torch_geometric.data.Batch): The input graph batch.
+
+            Returns:
+                torch.Tensor: The output tensor after passing through the encoder.
+            """
+            x = graph_batch.x
+            edge_index = graph_batch.edge_index
+            batch = graph_batch.batch
+            x = self.fc1(x)
+            x = self.relu(x)
+            x = self.conv1(x, edge_index)
+            x = self.relu(x)
+            x = self.conv2(x, edge_index)
+            x = self.relu(x)
+            x = global_max_pool(x, batch)
+            x = self.fc2(x)
+            
+            return x
+            
+class VariationalGCNEncoder(nn.Module):
+    """
+    Variational Graph Convolutional Network (GCN) Encoder module.
+
+    Args:
+        nout (int): Number of output features.
+        nhid (int): Number of hidden features.
+        n_in (int): Number of input features.
+        dropout (float): Dropout rate.
+
+    Attributes:
+        dropout (float): Dropout rate.
+        n_in (int): Number of input features.
+        n_hidden (int): Number of hidden features.
+        n_out (int): Number of output features.
+        relu (nn.ReLU): ReLU activation function.
+        fc1 (nn.Linear): Fully connected layer 1.
+        fc2 (nn.Linear): Fully connected layer 2.
+        encoder (VGAE): Variational Graph Autoencoder module.
+
+    """
+
+    def __init__(self, nout, nhid, n_in, dropout):
+        super(VariationalGCNEncoder, self).__init__()
+        self.conv1 = GCNConv(n_in, nhid)
+        self.conv_mu = GCNConv(nhid, nout)
+        self.conv_logvar = GCNConv(nhid, nout)
+        self.relu = nn.LeakyReLU()
+        
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        x = self.conv1(x, edge_index)
+        x = self.relu(x)
+        mu = self.conv_mu(x, edge_index)
+        logvar = self.conv_logvar(x, edge_index)
+        return mu, logvar
+    
     

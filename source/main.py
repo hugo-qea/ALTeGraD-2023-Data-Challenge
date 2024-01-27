@@ -1,5 +1,5 @@
 from utils import *
-from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer  
+from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer , ModelGPS, ModelSuperGAT, ModelVGAE
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -50,7 +50,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -60,9 +60,9 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 120
-batch_size = 128
-learning_rate = 1e-4
+nb_epochs = 5
+batch_size = 32
+learning_rate = 5e-5
 
 # Setup the batch loaders
 val_loader = TorchGeoDataLoader(val_dataset, batch_size=batch_size, shuffle=True)
@@ -74,11 +74,17 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGPS(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=6, dropout=0.6) # nout = bert model hidden dim
+model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelVGAE(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+
+
+
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + model_name + 'NCELoss'
+MODEL_SURNAME =  model.get_model_surname() + 'Test' 
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)
@@ -134,6 +140,8 @@ writer = SummaryWriter(comment=COMMENT)
 # Training loop
 
 
+lrap_scores = []
+
 for i in tqdm(range(nb_epochs)):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
@@ -147,13 +155,13 @@ for i in tqdm(range(nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        contrastive_loss_ = contrastive_loss(x_graph, x_text)
-        current_loss = nce_loss(x_graph, x_text, num_neg_samples=13)   
+        #contrastive_loss_ = contrastive_loss(x_graph, x_text)
+        current_loss = contrastive_loss(x_graph, x_text)
         optimizer.zero_grad()
         current_loss.backward()
         optimizer.step()
         loss += current_loss.item()
-        contrastive += contrastive_loss_.item()
+        #contrastive += contrastive_loss_.item()
         
         count_iter += 1
         if count_iter % printEvery == 0:
@@ -162,13 +170,16 @@ for i in tqdm(range(nb_epochs)):
                                                                         time2 - time1, loss/printEvery))
             losses.append(loss)
             contrastive_losses.append(contrastive)
-            writer.add_scalar("NCELoss/train", loss/printEvery, count_iter)
-            writer.add_scalar("Loss/train", contrastive/printEvery, count_iter)
+            #writer.add_scalar("NCELoss/train", loss/printEvery, count_iter)
+            writer.add_scalar("Loss/train", loss/printEvery, count_iter)
             contrastive = 0
             loss = 0 
+    
     model.eval()       
     val_loss = 0
     contrastive_val_loss_ = 0        
+    y_true = []
+    y_pred = []
     for batch in val_loader:
         input_ids = batch.input_ids
         batch.pop('input_ids')
@@ -178,15 +189,18 @@ for i in tqdm(range(nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        contrastive_val_loss_ = contrastive_loss(x_graph, x_text)
-        current_loss = nce_loss(x_graph, x_text, num_neg_samples=13)   
+        #contrastive_val_loss_ = contrastive_loss(x_graph, x_text)
+        current_loss = contrastive_loss(x_graph, x_text)  
         val_loss += current_loss.item()
+        
+    
     best_validation_loss = min(best_validation_loss, val_loss)
     print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: ', str(val_loss/len(val_loader)) )
-    writer.add_scalar("NCELoss/validation", val_loss/len(val_loader), i)
-    writer.add_scalar("Loss/validation", contrastive_val_loss_/len(val_loader), i)
+    #writer.add_scalar("NCELoss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
+    
     if best_validation_loss==val_loss:
-        print('validation loss improved saving checkpoint...')
+        print('validation loss improved, saving checkpoint...')
         save_path = os.path.join(SAVE_DIR, 'model_'+str(i)+'.pt')
         torch.save({
         'epoch': i,
