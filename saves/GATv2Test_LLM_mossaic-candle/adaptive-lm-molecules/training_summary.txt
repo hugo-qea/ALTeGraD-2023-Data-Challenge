@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2Test_LLM_mossaic-candle/adaptive-lm-molecules
+Timestamp: 2024-01-29 16:53:20.470750
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 16
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 2285.981541633606
+Best validation loss: 1.6205902351561376
+Training loss mean over last 500 iterations: 1.9138284654617308
+================

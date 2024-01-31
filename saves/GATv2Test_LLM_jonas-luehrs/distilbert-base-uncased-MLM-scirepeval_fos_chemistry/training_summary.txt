@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2Test_LLM_jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry
+Timestamp: 2024-01-29 15:58:14.615109
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 32
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1255.118965625763
+Best validation loss: 0.38603524084814683
+Training loss mean over last 500 iterations: 0.5506312347501516
+================

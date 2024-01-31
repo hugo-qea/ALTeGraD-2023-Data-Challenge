@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2BENCHMARK_DISTILBERT_FINETUNED_SST2_ENGLISH
+Timestamp: 2024-01-29 14:28:37.920908
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 32
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1276.8947463035583
+Best validation loss: 0.4216010413205228
+Training loss mean over last 500 iterations: 0.554859336271882
+================

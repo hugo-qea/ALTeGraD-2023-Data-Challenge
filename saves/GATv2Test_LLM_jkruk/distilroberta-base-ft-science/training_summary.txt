@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: GATv2Test_LLM_jkruk/distilroberta-base-ft-science
+Timestamp: 2024-01-29 15:16:47.270529
+Host: Hugo-UnbuntuPC
+================
+Parameters:
+Number of epochs: 5
+Batch size: 32
+Learning rate: 5e-05
+================
+Hardware:
+GPU found: NVIDIA GeForce RTX 3080
+GPU memory: 9987.250 MB 
+================
+Training time: 1272.1657228469849
+Best validation loss: 0.6423939147677559
+Training loss mean over last 500 iterations: 0.831434886008501
+================
