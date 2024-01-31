@@ -1,5 +1,5 @@
 from utils import *
-from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer , ModelGPS, ModelSuperGAT, ModelVGAE, ModelGINE
+from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer , ModelGPS, ModelSuperGAT, ModelVGAE, ModelGINE, ModelTransformerv2
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 
@@ -56,7 +56,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -67,8 +67,8 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 100
-batch_size = 150
+nb_epochs = 5
+batch_size = 32
 learning_rate = 1e-4
 
 # Setup the batch loaders
@@ -80,19 +80,20 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
-model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGPS(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=6, dropout=0.6) # nout = bert model hidden dim
 #model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=16, dropout=0.6) # nout = bert model hidden dim
 #model = ModelVGAE(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGINE(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+model = ModelTransformerv2(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=2, dropout=0.6) # nout = bert model hidden dim
 
 
 
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + '_NEW_LOSS_SCHEDULER'
+MODEL_SURNAME =  'TEST_' + model.get_model_surname() + 'ALPHA_TEST'
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)
@@ -136,28 +137,37 @@ scheduler = StepLR(optimizer, step_size=100, gamma=0.9)
 epoch = 0
 loss = 0
 contrastive = 0
+triplet_loss_ = 0
 contrastive_losses = []
 losses = []
+triplet_losses = []
+cosineScores = []
+sigmoidScores = []
+score1 = 0
+score2 = 0
 count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
+reference = torch.diag(torch.ones(batch_size)).to(device)
 
 # Initialize tensorboard
 writer = SummaryWriter(comment=COMMENT)
 
 # Load a checkpoint
-save_path = os.path.join(SAVE_DIR, 'model_47.pt')
-checkpoint = torch.load(save_path)
-model.load_state_dict(checkpoint['model_state_dict'])
+#save_path = os.path.join(SAVE_DIR, 'model_47.pt')
+#checkpoint = torch.load(save_path)
+#model.load_state_dict(checkpoint['model_state_dict'])
 
 # Training loop
-lrap_scores = []
 
-for i in tqdm(range(47,nb_epochs)):
+for i in tqdm(range(nb_epochs)):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
     for batch in train_loader:
+        #print(batch.batch)
+        #print(batch.ptr)
+        size = batch.num_graphs
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -167,14 +177,21 @@ for i in tqdm(range(47,nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        contrastive_loss_ = contrastive_loss(x_graph, x_text)
-        current_loss = negative_sampling_contrastive_loss(x_graph, x_text)
+        cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+       #contrastive_loss_ = contrastive_loss(x_graph, x_text)
+        current_loss = contrastive_loss(x_graph, x_text)
+        triplet_loss = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
+        
         optimizer.zero_grad()
         current_loss.backward()
+        #triplet_loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
+        triplet_loss_ += triplet_loss.item()
         loss += current_loss.item()
-        contrastive += contrastive_loss_.item()
+        #contrastive += contrastive_loss_.item()
+        score1 += cosineScore.item()
+        score2 += sigmoidScore.item()
         
         count_iter += 1
         if count_iter % printEvery == 0:
@@ -182,18 +199,29 @@ for i in tqdm(range(47,nb_epochs)):
             print("Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(count_iter,
                                                                         time2 - time1, loss/printEvery))
             losses.append(loss)
-            contrastive_losses.append(contrastive)
-            writer.add_scalar("NSCLoss/train", loss/printEvery, count_iter)
-            writer.add_scalar("Loss/train", contrastive/printEvery, count_iter)
-            contrastive = 0
+            #contrastive_losses.append(contrastive)
+            cosineScores.append(score1)
+            sigmoidScores.append(score2)
+            triplet_losses.append(triplet_loss_)
+            #writer.add_scalar("NSCLoss/train", loss/printEvery, count_iter)
+            writer.add_scalar("Loss/train", loss/printEvery, count_iter)
+            writer.add_scalar("CosineScore/train", score1/printEvery, count_iter)
+            writer.add_scalar("SigmoidScore/train", score2/printEvery, count_iter)
+            writer.add_scalar("TripletLoss/train", triplet_loss_/printEvery, count_iter)
+            #contrastive = 0
             loss = 0 
+            score1 = 0
+            score2 = 0
+            triplet_loss_ = 0
     
     model.eval()       
     val_loss = 0
     contrastive_val_loss_ = 0        
-    y_true = []
-    y_pred = []
+    cosScore = 0
+    sigScore = 0
+    triplet_val_loss = 0
     for batch in val_loader:
+        size = batch.num_graphs
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -202,16 +230,24 @@ for i in tqdm(range(47,nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        contrastive_val_loss__ = contrastive_loss(x_graph, x_text)
-        current_loss = negative_sampling_contrastive_loss(x_graph, x_text) 
+        #contrastive_val_loss__ = contrastive_loss(x_graph, x_text)
+        current_loss = contrastive_loss(x_graph, x_text)
+        triplet_val_loss_ = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
+        cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+        cosScore += cosineScore.item()
+        sigScore += sigmoidScore.item()
         val_loss += current_loss.item()
-        contrastive_val_loss_ += contrastive_val_loss__.item()
+        #contrastive_val_loss_ += contrastive_val_loss__.item()
+        triplet_val_loss += triplet_val_loss_.item()
         
     
     best_validation_loss = min(best_validation_loss, val_loss)
-    print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: ', str(val_loss/len(val_loader)) )
-    writer.add_scalar("NSCLoss/validation", val_loss/len(val_loader), i)
-    writer.add_scalar("Loss/validation", contrastive_val_loss_/len(val_loader), i)
+    print('-----EPOCH'+str(i+1)+'----- done.  Validation loss:'+  str(val_loss/len(val_loader))+ 'CosineScore:'+str(cosScore/len(val_loader))+ 'SigmoidScore:'+str(sigScore/len(val_loader)))
+    #writer.add_scalar("NSCLoss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("CosineScore/validation", cosScore/len(val_loader), i)
+    writer.add_scalar("SigmoidScore/validation", sigScore/len(val_loader), i)
+    writer.add_scalar("TripletLoss/validation", triplet_val_loss/len(val_loader), i)
     
     if best_validation_loss==val_loss:
         print('validation loss improved, saving checkpoint...')
@@ -302,15 +338,17 @@ similarity =sigmoid_kernel(text_embeddings, graph_embeddings)
 #similarity = additive_chi2_kernel(text_embeddings, graph_embeddings)
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
+solution.to_csv(os.path.join(SUBMISSION_DIR, 'AdditiveChi2submission.csv'), index=True)
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+solution.to_csv(os.path.join(SUBMISSION_DIR, 'AdditiveChi4submission.csv'), index=True)
 solution.to_csv(os.path.join(SUBMISSION_DIR, 'Sigmoidsubmission.csv'), index=False)
 print('submission saved to: {}'.format(os.path.join(SUBMISSION_DIR, 'submission.csv')))
 print('================ DONE ================')
-
+"""
 similarity = cosine_similarity(text_embeddings, graph_embeddings)
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
 solution.to_csv(os.path.join(SUBMISSION_DIR, 'COSINEsubmission.csv'), index=False)
 print('submission saved to: {}'.format(os.path.join(SUBMISSION_DIR, 'submission.csv')))
-print('================ DONE ================')
+print('================ DONE ================')"""

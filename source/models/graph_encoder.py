@@ -2,9 +2,9 @@ from torch import nn
 import torch.nn.functional as F
 
 from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE, AttentiveFP, MLP, Node2Vec
-from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv, GPSConv, MessagePassing, GCNConv, GINEConv
+from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv, GPSConv, MessagePassing, GCNConv, GINEConv, ResGatedGraphConv
 from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool, SuperGATConv
-from torch_geometric.nn.norm import GraphNorm
+from torch_geometric.nn.norm import GraphNorm, LayerNorm
 from torch.nn import Sequential
 
 
@@ -648,4 +648,51 @@ class SuperGIN(nn.Module):
         x = self.fc2(x)
         return x
     
-    
+class GraphTransformer(nn.Module):
+    def __init__(self, nout, nhid, n_heads, n_in, dropout):
+        super(GraphTransformer, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.n_hidden = nhid
+        self.n_heads = n_heads
+        self.n_out = nout
+        self.relu = nn.LeakyReLU()
+        #self.res1 = ResGatedGraphConv(self._in, self.n_heads * self.n_hidden)
+        self.Trans1 = TransformerConv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout, beta=True, concat=True)
+        self.norm1 = LayerNorm(self.n_hidden*self.n_heads)
+        #self.res2 = ResGatedGraphConv(self.n_heads * self.n_hidden, self.n_heads * self.n_heads *self.n_hidden)
+        self.Trans2 = TransformerConv(in_channels=self.n_hidden*self.n_heads, out_channels=self.n_hidden*self.n_heads, heads=self.n_heads, dropout=self.dropout, beta=True, concat=True)
+        self.norm2 = LayerNorm(self.n_hidden*self.n_heads*self.n_heads)
+        #self.res3 = ResGatedGraphConv(self.n_heads * self.n_heads * self.n_hidden, self.n_heads * self.n_heads * self.n_heads  *self.n_hidden)
+        self.Trans3 = TransformerConv(in_channels= self.n_hidden*self.n_heads*self.n_heads, out_channels=self.n_hidden*self.n_heads*self.n_heads, heads=self.n_heads, dropout=self.dropout, beta=True, concat=True)
+        self.norm3 = LayerNorm(self.n_hidden*self.n_heads*self.n_heads*self.n_heads)
+        self.MLP = MLP(in_channels=self.n_hidden*self.n_heads*self.n_heads*self.n_heads, hidden_channels=self.n_hidden, out_channels=self.n_out, num_layers=2)
+        
+        
+    def forward(self, graph_batch):
+            """
+            Forward pass of the graph encoder model.
+
+            Args:
+                graph_batch (torch_geometric.data.Batch): The input graph batch.
+
+            Returns:
+                torch.Tensor: The output tensor after passing through the encoder.
+            """
+            x = graph_batch.x
+            edge_index = graph_batch.edge_index
+            batch = graph_batch.batch
+            x = self.Trans1(x, edge_index)
+            x = self.norm1(x)
+            x = self.relu(x)
+            x = self.Trans2(x, edge_index)
+            x = self.norm2(x)
+            x = self.relu(x)
+            x = self.Trans3(x, edge_index)
+            x = self.norm3(x)
+            x = self.relu(x)
+            x = global_max_pool(x, batch)
+            x = self.MLP(x)
+            
+            
+            return x

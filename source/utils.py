@@ -19,6 +19,8 @@ import sys
 from tqdm import tqdm
 from datetime import datetime
 from socket import gethostname
+import torchpairwise as pw
+from torchmetrics.classification import MultilabelRankingAveragePrecision
 
 CE = torch.nn.CrossEntropyLoss()
 
@@ -82,3 +84,53 @@ def negative_sampling_contrastive_loss(v1, v2):
   labels = torch.ones(logits.shape[0], device=v1.device)
   eye = torch.diag_embed(labels).to(v1.device)
   return BCEL(logits, eye) + BCEL(torch.transpose(logits, 0, 1), eye)
+
+def compute_score(graph_embeddings, text_embeddings):
+    """
+    Computes the score for a batch of predictions.
+
+    Args:
+        prediction (torch.Tensor): The predictions.
+        batch (torch.Tensor): The batch.
+
+    Returns:
+        float: The score.
+    """
+    graph = graph_embeddings.detach().cpu().numpy()
+    text = text_embeddings.detach().cpu().numpy()
+    cosine_similarity_ = cosine_similarity(graph, text)
+    sigmoid_kernel_ = sigmoid_kernel(graph, text)
+    ground_truth = np.ones(graph.shape[0])
+    ground_truth_ = np.diag(ground_truth)
+    score1 = label_ranking_average_precision_score(ground_truth_, cosine_similarity_)
+    score2 = label_ranking_average_precision_score(ground_truth_, sigmoid_kernel_)
+    return score1, score2
+
+def scores(x_graph, x_test,reference, batch_size=32, device='cuda'):
+    cosine_similarity_ = pw.cosine_similarity(x_graph, x_test)
+    sigmoid_kernel_ = pw.sigmoid_kernel(x_graph, x_test)
+    scoring = MultilabelRankingAveragePrecision(num_labels=batch_size).to(device)
+    cosineScore = scoring(cosine_similarity_, reference)
+    sigmoidScore = scoring(sigmoid_kernel_, reference)
+    return cosineScore, sigmoidScore
+
+
+def BatchTripletLoss(x_text,x_graph, margin=0.3,batch_size=32, device='cuda'):
+    """
+    Computes the triplet loss for a batch of vectors.
+
+    Args:
+        v1 (torch.Tensor): The first vector batch.
+        v2 (torch.Tensor): The second vector batch.
+        v3 (torch.Tensor): The third vector batch.
+        margin (float): The margin.
+
+    Returns:
+        torch.Tensor: The batch triplet loss value.
+    """
+    anchor = pw.cosine_similarity(x_text, x_graph)
+    ones = torch.ones(batch_size, device=device)
+    neg = anchor[torch.randperm(anchor.size()[0])]
+    d_neg = torch.sum((anchor - neg) ** 2, dim=1)
+    loss = torch.relu(- d_neg + margin)
+    return torch.mean(loss)
