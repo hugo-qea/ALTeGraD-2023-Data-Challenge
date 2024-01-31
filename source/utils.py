@@ -12,6 +12,7 @@ import os
 import pandas as pd
 import torch.nn.functional as F
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import sigmoid_kernel, additive_chi2_kernel, chi2_kernel, laplacian_kernel, polynomial_kernel, rbf_kernel
 from sklearn.metrics import label_ranking_average_precision_score
 
 import sys
@@ -74,4 +75,10 @@ def nce_loss(v1, v2, temperature=1.0, num_neg_samples=10):
     return nce_loss
 
 
-#def snn_loss()
+BCEL = torch.nn.BCEWithLogitsLoss()
+
+def negative_sampling_contrastive_loss(v1, v2):
+  logits = torch.matmul(v1,torch.transpose(v2, 0, 1))
+  labels = torch.ones(logits.shape[0], device=v1.device)
+  eye = torch.diag_embed(labels).to(v1.device)
+  return BCEL(logits, eye) + BCEL(torch.transpose(logits, 0, 1), eye)

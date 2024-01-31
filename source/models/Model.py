@@ -240,3 +240,11 @@ class ModelVGAE(Model):
 
     def get_model_surname(self):
         return 'VGAE'
+    
+class ModelGINE(Model):
+	def __init__(self, model_name, n_in, nout, nhid, n_heads, dropout):
+		super(ModelGINE, self).__init__(model_name=model_name)
+		self.graph_encoder = SuperGIN(nout, nhid,n_heads, n_in, dropout)
+
+	def get_model_surname(self):
+		return 'GINE'

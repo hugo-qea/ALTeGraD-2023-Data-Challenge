@@ -2,9 +2,10 @@ from torch import nn
 import torch.nn.functional as F
 
 from torch_geometric.nn import GCNConv, GAT, VGAE, GraphSAGE, AttentiveFP, MLP, Node2Vec
-from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv, GPSConv, MessagePassing, GCNConv
+from torch_geometric.nn.conv import GATConv, GATv2Conv, TransformerConv, GPSConv, MessagePassing, GCNConv, GINEConv
 from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool, SuperGATConv
 from torch_geometric.nn.norm import GraphNorm
+from torch.nn import Sequential
 
 
 class GCN(nn.Module):
@@ -549,9 +550,11 @@ class SuperGAT(nn.Module):
         self.n_out = nout
         self.relu = nn.LeakyReLU()
         self.conv1 = SuperGATConv(in_channels=self.n_hidden, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout, is_undirected=True)
-        self.conv2 = SuperGATConv(in_channels=self.n_heads * self.n_hidden, out_channels=self.n_hidden, heads=1, dropout=self.dropout, is_undirected=True)
+        self.conv2 = SuperGATConv(in_channels=self.n_heads * self.n_hidden, out_channels=self.n_hidden, heads=1, dropout=self.dropout, is_undirected=True, concat=False)
         self.fc2 = nn.Linear(self.n_hidden, self.n_out)
-        self.fc1 = nn.Linear(self.n_in, self.n_hidden)
+        self.fc1 =  nn.Linear(self.n_in, self.n_hidden)
+        self.dropoutLayer = nn.Dropout(self.dropout)
+        self.Norm = GraphNorm(in_channels = self.n_hidden)
         
     def forward(self, graph_batch):
             """
@@ -567,7 +570,9 @@ class SuperGAT(nn.Module):
             edge_index = graph_batch.edge_index
             batch = graph_batch.batch
             x = self.fc1(x)
+            #x = self.Norm(x)
             x = self.relu(x)
+            x = self.dropoutLayer(x)
             x = self.conv1(x, edge_index)
             x = self.relu(x)
             x = self.conv2(x, edge_index)
@@ -615,5 +620,32 @@ class VariationalGCNEncoder(nn.Module):
         mu = self.conv_mu(x, edge_index)
         logvar = self.conv_logvar(x, edge_index)
         return mu, logvar
+    
+    
+class SuperGIN(nn.Module):
+    def __init__(self, nout, nhid, n_heads, n_in, dropout):
+        super(SuperGIN, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.n_hidden = nhid
+        self.n_heads = n_heads
+        self.n_out = nout
+        mlp = [nn.Linear(self.n_in, self.n_hidden), nn.ReLU(), nn.Linear(self.n_hidden, self.n_hidden)]
+        self.conv1 = GINEConv(Sequential(*mlp))
+        self.fc2 = MLP(in_channels=self.n_hidden, hidden_channels=self.n_hidden, out_channels=self.n_out, num_layers=4)
+        self.fc1 = MLP(in_channels=self.n_in, hidden_channels=self.n_hidden, out_channels=self.n_hidden, num_layers=4)
+        self.relu = nn.LeakyReLU()
+
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.conv1(x, edge_index)
+        x = self.relu(x)
+        x = global_max_pool(x, batch)
+        x = self.fc2(x)
+        return x
     
     

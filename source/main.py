@@ -1,6 +1,9 @@
 from utils import *
-from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer , ModelGPS, ModelSuperGAT, ModelVGAE
+from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer , ModelGPS, ModelSuperGAT, ModelVGAE, ModelGINE
 from torch.utils.tensorboard import SummaryWriter
+from torch.optim.lr_scheduler import StepLR
+
+
 
 
 
@@ -17,7 +20,7 @@ torch.backends.cudnn.deterministic = True
 
 # Setup the text encoder
 #model_name = 'distilbert-base-uncased'
-#model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
+model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'BAAI/bge-reranker-large'
 #model_name = 'BAAI/llm-embedder'
 #model_name = 'facebook/fasttext-language-identification'
@@ -30,17 +33,20 @@ torch.backends.cudnn.deterministic = True
 #model_name = 'gokceuludogan/ChemBERTaLM'
 #model_name = 'seyonec/PubChem10M_SMILES_BPE_450k'
 #model_name = 'alvaroalon2/biobert_chemical_ner'
-model_name = 'jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry'
+#model_name = 'jonas-luehrs/distilbert-base-uncased-MLM-scirepeval_fos_chemistry'
 #model_name = 'nlpie/tiny-biobert'
 #model_name = 'dmis-lab/biobert-v1.1'
 #model_name = 'microsoft/deberta-v3-base'
 #model_name = 'DeepChem/ChemBERTa-10M-MLM'
 #model_name = 'DeepChem/SmilesTokenizer_PubChem_1M'
 #model_name = 'unikei/bert-base-smiles'
-#model_name = 'matr1xx/scibert_scivocab_uncased-finetuned-mol-mlm-0.3'
+#model_name = 'matr1xx/scibert_scivocab_uncased-finetuned-mol'
 #model_name = 'ghadeermobasher/BC5CDR-Chemical-Disease-balanced-BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext'
 #model_name = 'FelixChao/vicuna-7B-chemical'
 #model_name = 'JuIm/SMILES_BERT'
+#model_name = 'nlpie/bio-tinybert'
+#model_name = 'yashpatil/biobert-tiny-model'
+#model = 'albert/albert-base-v2'
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -50,19 +56,20 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
+    print('Using device: {}'.format(device))
     print('GPU found: {}'.format(torch.cuda.get_device_name(0)))
     print('GPU memory: {:.3f} MB'.format(torch.cuda.get_device_properties(0).total_memory / 1024 / 1024))
 else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 5
-batch_size = 32
-learning_rate = 5e-5
+nb_epochs = 100
+batch_size = 150
+learning_rate = 1e-4
 
 # Setup the batch loaders
 val_loader = TorchGeoDataLoader(val_dataset, batch_size=batch_size, shuffle=True)
@@ -73,18 +80,19 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelSAGE(model_name=model_name, n_in=300, nout=768, nhid=1000, sage_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
-#model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGPS(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=6, dropout=0.6) # nout = bert model hidden dim
-model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=16, dropout=0.6) # nout = bert model hidden dim
 #model = ModelVGAE(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGINE(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 
 
 
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + 'Test' 
+MODEL_SURNAME =  model.get_model_surname() + '_NEW_LOSS_SCHEDULER'
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)
@@ -94,6 +102,7 @@ if not os.path.exists(SUBMISSION_DIR):
 
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
+    
 
 # Print summary of the graph encoder model
 encoder = model.get_graph_encoder()
@@ -121,6 +130,7 @@ f.close()
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.999),
                                 weight_decay=0.01)
+scheduler = StepLR(optimizer, step_size=100, gamma=0.9)
 
 # Initialize training
 epoch = 0
@@ -136,13 +146,15 @@ best_validation_loss = 1000000
 # Initialize tensorboard
 writer = SummaryWriter(comment=COMMENT)
 
+# Load a checkpoint
+save_path = os.path.join(SAVE_DIR, 'model_47.pt')
+checkpoint = torch.load(save_path)
+model.load_state_dict(checkpoint['model_state_dict'])
 
 # Training loop
-
-
 lrap_scores = []
 
-for i in tqdm(range(nb_epochs)):
+for i in tqdm(range(47,nb_epochs)):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
     for batch in train_loader:
@@ -155,13 +167,14 @@ for i in tqdm(range(nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        #contrastive_loss_ = contrastive_loss(x_graph, x_text)
-        current_loss = contrastive_loss(x_graph, x_text)
+        contrastive_loss_ = contrastive_loss(x_graph, x_text)
+        current_loss = negative_sampling_contrastive_loss(x_graph, x_text)
         optimizer.zero_grad()
         current_loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         loss += current_loss.item()
-        #contrastive += contrastive_loss_.item()
+        contrastive += contrastive_loss_.item()
         
         count_iter += 1
         if count_iter % printEvery == 0:
@@ -170,8 +183,8 @@ for i in tqdm(range(nb_epochs)):
                                                                         time2 - time1, loss/printEvery))
             losses.append(loss)
             contrastive_losses.append(contrastive)
-            #writer.add_scalar("NCELoss/train", loss/printEvery, count_iter)
-            writer.add_scalar("Loss/train", loss/printEvery, count_iter)
+            writer.add_scalar("NSCLoss/train", loss/printEvery, count_iter)
+            writer.add_scalar("Loss/train", contrastive/printEvery, count_iter)
             contrastive = 0
             loss = 0 
     
@@ -189,15 +202,16 @@ for i in tqdm(range(nb_epochs)):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        #contrastive_val_loss_ = contrastive_loss(x_graph, x_text)
-        current_loss = contrastive_loss(x_graph, x_text)  
+        contrastive_val_loss__ = contrastive_loss(x_graph, x_text)
+        current_loss = negative_sampling_contrastive_loss(x_graph, x_text) 
         val_loss += current_loss.item()
+        contrastive_val_loss_ += contrastive_val_loss__.item()
         
     
     best_validation_loss = min(best_validation_loss, val_loss)
     print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: ', str(val_loss/len(val_loader)) )
-    #writer.add_scalar("NCELoss/validation", val_loss/len(val_loader), i)
-    writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("NSCLoss/validation", val_loss/len(val_loader), i)
+    writer.add_scalar("Loss/validation", contrastive_val_loss_/len(val_loader), i)
     
     if best_validation_loss==val_loss:
         print('validation loss improved, saving checkpoint...')
@@ -229,6 +243,10 @@ f.write('Number of epochs: {}\n'.format(nb_epochs))
 f.write('Batch size: {}\n'.format(batch_size))
 f.write('Learning rate: {}\n'.format(learning_rate))
 f.write('================\n')
+f.write('Model Parameters:\n')
+f.write('Model name: {}\n'.format(model_name))
+f.write('Number of parameters: {}\n'.format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
+f.write('================\n')
 f.write('Hardware:\n')
 if device != torch.device("cpu"):
     f.write('GPU found: {}\n'.format(torch.cuda.get_device_name(0)))
@@ -249,7 +267,7 @@ f.close()
 # Submission
 
 print('loading best model for submission...')
-#ave_path = os.path.join(SAVE_DIR, 'model_96.pt')
+#save_path = os.path.join(SAVE_DIR, 'model_80.pt')
 checkpoint = torch.load(save_path)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
@@ -262,7 +280,7 @@ test_text_dataset = TextDataset(file_path='../data/test_text.txt', tokenizer=tok
 
 idx_to_cid = test_cids_dataset.get_idx_to_cid()
 
-test_loader = DataLoader(test_cids_dataset, batch_size=batch_size, shuffle=False)
+test_loader = TorchGeoDataLoader(test_cids_dataset, batch_size=batch_size, shuffle=False)
 
 graph_embeddings = []
 for batch in test_loader:
@@ -278,11 +296,21 @@ for batch in test_text_loader:
 
 
 
-similarity = cosine_similarity(text_embeddings, graph_embeddings)
+#similarity = cosine_similarity(text_embeddings, graph_embeddings)
 
+similarity =sigmoid_kernel(text_embeddings, graph_embeddings)
+#similarity = additive_chi2_kernel(text_embeddings, graph_embeddings)
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-solution.to_csv(os.path.join(SUBMISSION_DIR, 'submission.csv'), index=False)
+solution.to_csv(os.path.join(SUBMISSION_DIR, 'Sigmoidsubmission.csv'), index=False)
+print('submission saved to: {}'.format(os.path.join(SUBMISSION_DIR, 'submission.csv')))
+print('================ DONE ================')
+
+similarity = cosine_similarity(text_embeddings, graph_embeddings)
+solution = pd.DataFrame(similarity)
+solution['ID'] = solution.index
+solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+solution.to_csv(os.path.join(SUBMISSION_DIR, 'COSINEsubmission.csv'), index=False)
 print('submission saved to: {}'.format(os.path.join(SUBMISSION_DIR, 'submission.csv')))
 print('================ DONE ================')

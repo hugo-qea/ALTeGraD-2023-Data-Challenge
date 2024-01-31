@@ -1,0 +1,20 @@
+Training summary
+================
+Presentation:
+Model: SuperGATTest3
+Timestamp: 2024-01-29 02:46:43.851304
+Host: gpu6.enst.fr
+================
+Parameters:
+Number of epochs: 120
+Batch size: 128
+Learning rate: 0.0001
+================
+Hardware:
+GPU found: NVIDIA A100-PCIE-40GB
+GPU memory: 40338.312 MB 
+================
+Training time: 47036.76766729355
+Best validation loss: 0.25156047395788705
+Training loss mean over last 500 iterations: 0.09389873650867958
+================
