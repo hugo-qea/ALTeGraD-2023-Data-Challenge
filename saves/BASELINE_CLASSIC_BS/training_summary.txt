@@ -1,0 +1,24 @@
+Training summary
+================
+Presentation:
+Model: BASELINE_CLASSIC_BS
+Timestamp: 2024-01-31 22:53:33.927755
+Host: gpu3.enst.fr
+================
+Parameters:
+Number of epochs: 5
+Batch size: 128
+Learning rate: 5e-05
+================
+Model Parameters:
+Model name: distilbert-base-uncased
+Number of parameters: 66956784
+================
+Hardware:
+GPU found: Tesla V100S-PCIE-32GB
+GPU memory: 32501.125 MB 
+================
+Training time: 1858.1468677520752
+Best validation loss: 1.0692379268316121
+Training loss mean over last 500 iterations: 0.9446033246815204
+================

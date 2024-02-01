@@ -56,7 +56,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -67,8 +67,8 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 5
-batch_size = 32
+nb_epochs = 120
+batch_size = 180
 learning_rate = 1e-4
 
 # Setup the batch loaders
@@ -82,18 +82,19 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=4, dropout=0.6) # nout = bert model hidden dim
-#model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=8, dropout=0.6) # nout = bert model hidden dim
+#model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=764, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGPS(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=6, dropout=0.6) # nout = bert model hidden dim
-#model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=16, dropout=0.6) # nout = bert model hidden dim
+#model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelVGAE(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGINE(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-model = ModelTransformerv2(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=2, dropout=0.6) # nout = bert model hidden dim
+model = ModelTransformerv2(model_name=model_name, n_in=300, nout=768, nhid=100, n_heads=2, dropout=0.6) # nout = bert model hidden dim
 
 
 
 model.to(device)
 
-MODEL_SURNAME =  'TEST_' + model.get_model_surname() + 'ALPHA_TEST'
+MODEL_SURNAME =  model.get_model_surname() + model_name +'n_heads=2,nhid=100,dropout=0.6'
+#MODEL_SURNAME = 'BASELINE_CLASSIC_BS'
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
 COMMENT = MODEL_SURNAME+'-lr'+str(learning_rate)+'-batch_size'+str(batch_size)
@@ -131,7 +132,7 @@ f.close()
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.999),
                                 weight_decay=0.01)
-scheduler = StepLR(optimizer, step_size=100, gamma=0.9)
+scheduler = StepLR(optimizer, step_size=400, gamma=0.99)
 
 # Initialize training
 epoch = 0
@@ -155,7 +156,7 @@ reference = torch.diag(torch.ones(batch_size)).to(device)
 writer = SummaryWriter(comment=COMMENT)
 
 # Load a checkpoint
-#save_path = os.path.join(SAVE_DIR, 'model_47.pt')
+#save_path = os.path.join(SAVE_DIR, 'model_36.pt')
 #checkpoint = torch.load(save_path)
 #model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -168,6 +169,7 @@ for i in tqdm(range(nb_epochs)):
         #print(batch.batch)
         #print(batch.ptr)
         size = batch.num_graphs
+        reference = torch.diag(torch.ones(size)).to(device)
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -222,6 +224,7 @@ for i in tqdm(range(nb_epochs)):
     triplet_val_loss = 0
     for batch in val_loader:
         size = batch.num_graphs
+        reference = torch.diag(torch.ones(size)).to(device)
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -242,7 +245,7 @@ for i in tqdm(range(nb_epochs)):
         
     
     best_validation_loss = min(best_validation_loss, val_loss)
-    print('-----EPOCH'+str(i+1)+'----- done.  Validation loss:'+  str(val_loss/len(val_loader))+ 'CosineScore:'+str(cosScore/len(val_loader))+ 'SigmoidScore:'+str(sigScore/len(val_loader)))
+    print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: '+  str(val_loss/len(val_loader))+ ' - CosineScore: '+str(cosScore/len(val_loader))+ ' - SigmoidScore: '+str(sigScore/len(val_loader)))
     #writer.add_scalar("NSCLoss/validation", val_loss/len(val_loader), i)
     writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
     writer.add_scalar("CosineScore/validation", cosScore/len(val_loader), i)
@@ -303,7 +306,7 @@ f.close()
 # Submission
 
 print('loading best model for submission...')
-#save_path = os.path.join(SAVE_DIR, 'model_80.pt')
+#save_path = os.path.join(SAVE_DIR, 'model_56.pt')
 checkpoint = torch.load(save_path)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
@@ -338,17 +341,14 @@ similarity =sigmoid_kernel(text_embeddings, graph_embeddings)
 #similarity = additive_chi2_kernel(text_embeddings, graph_embeddings)
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
-solution.to_csv(os.path.join(SUBMISSION_DIR, 'AdditiveChi2submission.csv'), index=True)
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-solution.to_csv(os.path.join(SUBMISSION_DIR, 'AdditiveChi4submission.csv'), index=True)
 solution.to_csv(os.path.join(SUBMISSION_DIR, 'Sigmoidsubmission.csv'), index=False)
 print('submission saved to: {}'.format(os.path.join(SUBMISSION_DIR, 'submission.csv')))
 print('================ DONE ================')
-"""
 similarity = cosine_similarity(text_embeddings, graph_embeddings)
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
 solution.to_csv(os.path.join(SUBMISSION_DIR, 'COSINEsubmission.csv'), index=False)
 print('submission saved to: {}'.format(os.path.join(SUBMISSION_DIR, 'submission.csv')))
-print('================ DONE ================')"""
+print('================ DONE ================')

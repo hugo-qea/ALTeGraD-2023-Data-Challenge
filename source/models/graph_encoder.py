@@ -657,13 +657,13 @@ class GraphTransformer(nn.Module):
         self.n_heads = n_heads
         self.n_out = nout
         self.relu = nn.LeakyReLU()
-        #self.res1 = ResGatedGraphConv(self._in, self.n_heads * self.n_hidden)
+        self.res1 = ResGatedGraphConv(self.n_in, self.n_heads * self.n_hidden)
         self.Trans1 = TransformerConv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.n_heads, dropout=self.dropout, beta=True, concat=True)
         self.norm1 = LayerNorm(self.n_hidden*self.n_heads)
-        #self.res2 = ResGatedGraphConv(self.n_heads * self.n_hidden, self.n_heads * self.n_heads *self.n_hidden)
+        self.res2 = ResGatedGraphConv(self.n_heads * self.n_hidden, self.n_heads * self.n_heads *self.n_hidden)
         self.Trans2 = TransformerConv(in_channels=self.n_hidden*self.n_heads, out_channels=self.n_hidden*self.n_heads, heads=self.n_heads, dropout=self.dropout, beta=True, concat=True)
         self.norm2 = LayerNorm(self.n_hidden*self.n_heads*self.n_heads)
-        #self.res3 = ResGatedGraphConv(self.n_heads * self.n_heads * self.n_hidden, self.n_heads * self.n_heads * self.n_heads  *self.n_hidden)
+        self.res3 = ResGatedGraphConv(self.n_heads * self.n_heads * self.n_hidden, self.n_heads * self.n_heads * self.n_heads  *self.n_hidden)
         self.Trans3 = TransformerConv(in_channels= self.n_hidden*self.n_heads*self.n_heads, out_channels=self.n_hidden*self.n_heads*self.n_heads, heads=self.n_heads, dropout=self.dropout, beta=True, concat=True)
         self.norm3 = LayerNorm(self.n_hidden*self.n_heads*self.n_heads*self.n_heads)
         self.MLP = MLP(in_channels=self.n_hidden*self.n_heads*self.n_heads*self.n_heads, hidden_channels=self.n_hidden, out_channels=self.n_out, num_layers=2)
@@ -682,16 +682,19 @@ class GraphTransformer(nn.Module):
             x = graph_batch.x
             edge_index = graph_batch.edge_index
             batch = graph_batch.batch
+            res = self.res1(x, edge_index)
             x = self.Trans1(x, edge_index)
             x = self.norm1(x)
-            x = self.relu(x)
+            x = self.relu(x) + res
+            res = self.res2(x, edge_index)
             x = self.Trans2(x, edge_index)
             x = self.norm2(x)
-            x = self.relu(x)
+            x = self.relu(x) + res
+            res = self.res3(x, edge_index)
             x = self.Trans3(x, edge_index)
             x = self.norm3(x)
-            x = self.relu(x)
-            x = global_max_pool(x, batch)
+            x = self.relu(x) + res
+            x = global_mean_pool(x, batch)
             x = self.MLP(x)
             
             

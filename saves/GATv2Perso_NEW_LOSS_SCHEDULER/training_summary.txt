@@ -1,0 +1,24 @@
+Training summary
+================
+Presentation:
+Model: GATv2Perso_NEW_LOSS_SCHEDULER
+Timestamp: 2024-01-31 17:23:54.928502
+Host: gpu6.enst.fr
+================
+Parameters:
+Number of epochs: 100
+Batch size: 150
+Learning rate: 0.0001
+================
+Model Parameters:
+Model name: distilbert-base-uncased-finetuned-sst-2-english
+Number of parameters: 89928960
+================
+Hardware:
+GPU found: NVIDIA A100-PCIE-40GB
+GPU memory: 40338.312 MB 
+================
+Training time: 9767.250480890274
+Best validation loss: 0.012488357844236105
+Training loss mean over last 500 iterations: 0.003718109465320595
+================
