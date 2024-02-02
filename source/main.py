@@ -198,7 +198,10 @@ for fold, (train_index, val_index) in enumerate(kf.split(train_dataset)):
             x_graph, x_text = model(graph_batch.to(device), 
                                     input_ids.to(device), 
                                     attention_mask.to(device))
-            cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+            if size > 1:
+                cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+            else:
+                cosineScore, sigmoidScore = 0, 0
         #contrastive_loss_ = contrastive_loss(x_graph, x_text)
             current_loss = contrastive_loss(x_graph, x_text)
             triplet_loss = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
@@ -259,7 +262,10 @@ for fold, (train_index, val_index) in enumerate(kf.split(train_dataset)):
             #contrastive_val_loss__ = contrastive_loss(x_graph, x_text)
             current_loss = contrastive_loss(x_graph, x_text)
             triplet_val_loss_ = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
-            cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+            if size > 1:
+                cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+            else:
+                cosineScore, sigmoidScore = 0, 0
             cosScore += cosineScore.item()
             sigScore += sigmoidScore.item()
             val_loss += current_loss.item()
