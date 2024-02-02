@@ -26,7 +26,7 @@ This repository contains the work of Team "Queniaric," consisting of Hugo Quenia
 3. Install the required dependencies
 
    ```bash
-   pip3 install -r requirements
+   pip3 install -r requirements.txt
    ```
    The requirements.txt file contains a list of dependencies and their versions required for this project. The command above installs these dependencies in your Python environment.
 
