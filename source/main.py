@@ -2,6 +2,7 @@ from utils import *
 from models.Model import Baseline, ModelAttention, ModelSAGE, ModelGATConv, ModelAttentiveFP, ModelGATPerso, ModelGATwMLP, ModelTransformer , ModelGPS, ModelSuperGAT, ModelVGAE, ModelGINE, ModelTransformerv2
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
+from sklearn.model_selection import KFold
 
 
 
@@ -56,7 +57,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -67,9 +68,9 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 120
-batch_size = 128
-learning_rate = 1e-4
+nb_epochs = 5
+batch_size = 32
+learning_rate = 5e-5
 
 # Setup the batch loaders
 val_loader = TorchGeoDataLoader(val_dataset, batch_size=batch_size, shuffle=True)
@@ -118,6 +119,14 @@ f.write(summary_graph_encoder)
 f.close()
 
 
+# Number of folds for cross-validation
+num_folds = 5  # Adjust as needed
+
+# Initialize k-fold cross-validator
+kf = KFold(n_splits=num_folds, shuffle=True, random_state=seed)
+
+
+
 # Print summary of the text encoder model
 # Generate random input data for the summary
 input_ids = torch.randint(1000, size=(batch_size, 128)).to(device)
@@ -150,120 +159,136 @@ count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
-# Initialize tensorboard
-writer = SummaryWriter(comment=COMMENT)
+
 
 # Load a checkpoint
 #save_path = os.path.join(SAVE_DIR, 'model_36.pt')
 #checkpoint = torch.load(save_path)
 #model.load_state_dict(checkpoint['model_state_dict'])
 
-# Training loop
 
-for i in tqdm(range(nb_epochs)):
-    print('-----EPOCH{}-----'.format(i+1))
-    model.train()
-    for batch in train_loader:
-        #print(batch.batch)
-        #print(batch.ptr)
-        size = batch.num_graphs
-        reference = torch.diag(torch.ones(size)).to(device)
-        input_ids = batch.input_ids
-        batch.pop('input_ids')
-        attention_mask = batch.attention_mask
-        batch.pop('attention_mask')
-        graph_batch = batch
-        
-        x_graph, x_text = model(graph_batch.to(device), 
-                                input_ids.to(device), 
-                                attention_mask.to(device))
-        cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
-       #contrastive_loss_ = contrastive_loss(x_graph, x_text)
-        current_loss = contrastive_loss(x_graph, x_text)
-        triplet_loss = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
-        
-        optimizer.zero_grad()
-        current_loss.backward()
-        #triplet_loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
-        triplet_loss_ += triplet_loss.item()
-        loss += current_loss.item()
-        #contrastive += contrastive_loss_.item()
-        score1 += cosineScore.item()
-        score2 += sigmoidScore.item()
-        
-        count_iter += 1
-        if count_iter % printEvery == 0:
-            time2 = time.time()
-            print("Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(count_iter,
-                                                                        time2 - time1, loss/printEvery))
-            losses.append(loss)
-            #contrastive_losses.append(contrastive)
-            cosineScores.append(score1)
-            sigmoidScores.append(score2)
-            triplet_losses.append(triplet_loss_)
-            #writer.add_scalar("NSCLoss/train", loss/printEvery, count_iter)
-            writer.add_scalar("Loss/train", loss/printEvery, count_iter)
-            writer.add_scalar("CosineScore/train", score1/printEvery, count_iter)
-            writer.add_scalar("SigmoidScore/train", score2/printEvery, count_iter)
-            writer.add_scalar("TripletLoss/train", triplet_loss_/printEvery, count_iter)
-            #contrastive = 0
-            loss = 0 
-            score1 = 0
-            score2 = 0
-            triplet_loss_ = 0
-    
-    model.eval()       
-    val_loss = 0
-    contrastive_val_loss_ = 0        
-    cosScore = 0
-    sigScore = 0
-    triplet_val_loss = 0
-    for batch in val_loader:
-        size = batch.num_graphs
-        reference = torch.diag(torch.ones(size)).to(device)
-        input_ids = batch.input_ids
-        batch.pop('input_ids')
-        attention_mask = batch.attention_mask
-        batch.pop('attention_mask')
-        graph_batch = batch
-        x_graph, x_text = model(graph_batch.to(device), 
-                                input_ids.to(device), 
-                                attention_mask.to(device))
-        #contrastive_val_loss__ = contrastive_loss(x_graph, x_text)
-        current_loss = contrastive_loss(x_graph, x_text)
-        triplet_val_loss_ = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
-        cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
-        cosScore += cosineScore.item()
-        sigScore += sigmoidScore.item()
-        val_loss += current_loss.item()
-        #contrastive_val_loss_ += contrastive_val_loss__.item()
-        triplet_val_loss += triplet_val_loss_.item()
-        
-    
-    best_validation_loss = min(best_validation_loss, val_loss)
-    print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: '+  str(val_loss/len(val_loader))+ ' - CosineScore: '+str(cosScore/len(val_loader))+ ' - SigmoidScore: '+str(sigScore/len(val_loader)))
-    #writer.add_scalar("NSCLoss/validation", val_loss/len(val_loader), i)
-    writer.add_scalar("Loss/validation", val_loss/len(val_loader), i)
-    writer.add_scalar("CosineScore/validation", cosScore/len(val_loader), i)
-    writer.add_scalar("SigmoidScore/validation", sigScore/len(val_loader), i)
-    writer.add_scalar("TripletLoss/validation", triplet_val_loss/len(val_loader), i)
-    
-    if best_validation_loss==val_loss:
-        print('validation loss improved, saving checkpoint...')
-        save_path = os.path.join(SAVE_DIR, 'model_'+str(i)+'.pt')
-        torch.save({
-        'epoch': i,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'validation_accuracy': val_loss,
-        'loss': loss,
-        }, save_path)
-        print('checkpoint saved to: {}'.format(save_path))
+for fold, (train_index, val_index) in enumerate(kf.split(train_dataset)):
+    # Create DataLoader for the current fold
+    train_fold_dataset = torch.utils.data.Subset(train_dataset, train_index)
+    val_fold_dataset = torch.utils.data.Subset(train_dataset, val_index)
+    train_fold_loader = TorchGeoDataLoader(train_fold_dataset, batch_size=batch_size, shuffle=True)
+    val_fold_loader = TorchGeoDataLoader(val_fold_dataset, batch_size=batch_size, shuffle=True)
 
-writer.flush()
-writer.close()
+    # Initialize tensorboard for each fold
+    writer = SummaryWriter(comment=COMMENT+'_fold'+str(fold+1))
+
+
+
+    # Training loop
+
+    for i in tqdm(range(nb_epochs)):
+        print('-----EPOCH{} FOLD{}-----'.format(i+1, fold+1))
+        model.train()
+        for batch in train_fold_loader:
+            #print(batch.batch)
+            #print(batch.ptr)
+            size = batch.num_graphs
+            reference = torch.diag(torch.ones(size)).to(device)
+            input_ids = batch.input_ids
+            batch.pop('input_ids')
+            attention_mask = batch.attention_mask
+            batch.pop('attention_mask')
+            graph_batch = batch
+            
+            x_graph, x_text = model(graph_batch.to(device), 
+                                    input_ids.to(device), 
+                                    attention_mask.to(device))
+            cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+        #contrastive_loss_ = contrastive_loss(x_graph, x_text)
+            current_loss = contrastive_loss(x_graph, x_text)
+            triplet_loss = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
+            
+            optimizer.zero_grad()
+            current_loss.backward()
+            #triplet_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            scheduler.step()
+            triplet_loss_ += triplet_loss.item()
+            loss += current_loss.item()
+            #contrastive += contrastive_loss_.item()
+            score1 += cosineScore.item()
+            score2 += sigmoidScore.item()
+            
+            count_iter += 1
+            if count_iter % printEvery == 0:
+                time2 = time.time()
+                print("Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(count_iter,
+                                                                            time2 - time1, loss/printEvery))
+                losses.append(loss)
+                #contrastive_losses.append(contrastive)
+                cosineScores.append(score1)
+                sigmoidScores.append(score2)
+                triplet_losses.append(triplet_loss_)
+                #writer.add_scalar("NSCLoss/train", loss/printEvery, count_iter)
+                writer.add_scalar("Loss/train", loss/printEvery, count_iter)
+                writer.add_scalar("CosineScore/train", score1/printEvery, count_iter)
+                writer.add_scalar("SigmoidScore/train", score2/printEvery, count_iter)
+                writer.add_scalar("TripletLoss/train", triplet_loss_/printEvery, count_iter)
+                #contrastive = 0
+                loss = 0 
+                score1 = 0
+                score2 = 0
+                triplet_loss_ = 0
+                
+                
+        #Validation loop
+        
+        model.eval()       
+        val_loss = 0
+        contrastive_val_loss_ = 0        
+        cosScore = 0
+        sigScore = 0
+        triplet_val_loss = 0
+        for batch in val_fold_loader:
+            size = batch.num_graphs
+            reference = torch.diag(torch.ones(size)).to(device)
+            input_ids = batch.input_ids
+            batch.pop('input_ids')
+            attention_mask = batch.attention_mask
+            batch.pop('attention_mask')
+            graph_batch = batch
+            x_graph, x_text = model(graph_batch.to(device), 
+                                    input_ids.to(device), 
+                                    attention_mask.to(device))
+            #contrastive_val_loss__ = contrastive_loss(x_graph, x_text)
+            current_loss = contrastive_loss(x_graph, x_text)
+            triplet_val_loss_ = BatchTripletLoss(x_text,x_graph, batch_size=size, device=device)
+            cosineScore, sigmoidScore = scores(x_graph, x_text, reference, device=device, batch_size=size)
+            cosScore += cosineScore.item()
+            sigScore += sigmoidScore.item()
+            val_loss += current_loss.item()
+            #contrastive_val_loss_ += contrastive_val_loss__.item()
+            triplet_val_loss += triplet_val_loss_.item()
+            
+        
+        best_validation_loss = min(best_validation_loss, val_loss)
+        print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: '+  str(val_loss/len(val_fold_loader))+ ' - CosineScore: '+str(cosScore/len(val_fold_loader))+ ' - SigmoidScore: '+str(sigScore/len(val_fold_loader)))
+        #writer.add_scalar("NSCLoss/validation", val_loss/len(val_loader), i)
+        writer.add_scalar("Loss/validation", val_loss/len(val_fold_loader), i)
+        writer.add_scalar("CosineScore/validation", cosScore/len(val_fold_loader), i)
+        writer.add_scalar("SigmoidScore/validation", sigScore/len(val_fold_loader), i)
+        writer.add_scalar("TripletLoss/validation", triplet_val_loss/len(val_fold_loader), i)
+        
+        if best_validation_loss==val_loss:
+            print('validation loss improved, saving checkpoint...')
+            save_path = os.path.join(SAVE_DIR, 'model_'+str(i)+'.pt')
+            torch.save({
+            'epoch': i,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'validation_accuracy': val_loss,
+            'loss': loss,
+            }, save_path)
+            print('checkpoint saved to: {}'.format(save_path))
+
+    writer.flush()
+    writer.close()
 
 
 # Write a summary of the training stats to a file
