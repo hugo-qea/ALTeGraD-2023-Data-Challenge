@@ -2,12 +2,12 @@ from models.graph_encoder import *
 from transformers import AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
 import torch.nn.functional as F
-
+import torch
 
 
     
 class TextEncoder(nn.Module):
-    def __init__(self, model_name):
+    def __init__(self, model_name,n_input=768,n_output=300):
         """
         Initializes a TextEncoder object.
 
@@ -17,6 +17,8 @@ class TextEncoder(nn.Module):
         """
         super(TextEncoder, self).__init__()
         self.bert = AutoModel.from_pretrained(model_name)
+        self.bert.train()
+        self.linear = nn.Linear(n_input,n_output)
         
     def forward(self, input_ids, attention_mask):
         """
@@ -31,7 +33,7 @@ class TextEncoder(nn.Module):
 
         """
         encoded_text = self.bert(input_ids, attention_mask=attention_mask)
-        return encoded_text.last_hidden_state[:,0,:]
+        return self.linear(encoded_text.last_hidden_state[:,0,:])
     
 class Model(nn.Module):
         def __init__(self, model_name):
@@ -45,6 +47,8 @@ class Model(nn.Module):
             super(Model, self).__init__()
             self.graph_encoder = None
             self.text_encoder = TextEncoder(model_name)
+            self.temp = nn.Parameter(torch.tensor(1.0))
+            self.register_parameter('temp', self.temp)
             
         def forward(self, graph_batch, input_ids, attention_mask):
             """
@@ -62,6 +66,8 @@ class Model(nn.Module):
             """
             graph_encoded = self.graph_encoder(graph_batch)
             text_encoded = self.text_encoder(input_ids, attention_mask)
+            graph_encoded = graph_encoded * torch.exp(self.temp)
+            text_encoded = text_encoded * torch.exp(self.temp)
             return graph_encoded, text_encoded
         
         def get_text_encoder(self):

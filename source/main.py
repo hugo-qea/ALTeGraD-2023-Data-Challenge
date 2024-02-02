@@ -56,7 +56,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -68,7 +68,7 @@ else:
 
 # Training hyperparameters
 nb_epochs = 120
-batch_size = 180
+batch_size = 128
 learning_rate = 1e-4
 
 # Setup the batch loaders
@@ -87,13 +87,13 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelVGAE(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGINE(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-model = ModelTransformerv2(model_name=model_name, n_in=300, nout=768, nhid=100, n_heads=2, dropout=0.6) # nout = bert model hidden dim
+model = ModelTransformerv2(model_name=model_name, n_in=300, nout=300, nhid=100, n_heads=2, dropout=0.75) # nout = bert model hidden dim
 
 
 
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + model_name +'n_heads=2,nhid=100,dropout=0.6'
+MODEL_SURNAME =  model.get_model_surname() + model_name +'n_heads=2,nhid=100,dropout=0.6' +'linear'
 #MODEL_SURNAME = 'BASELINE_CLASSIC_BS'
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
@@ -131,8 +131,8 @@ f.close()
 # Initialize the optimizer
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.999),
-                                weight_decay=0.01)
-scheduler = StepLR(optimizer, step_size=400, gamma=0.99)
+                                weight_decay=0.001)
+scheduler = StepLR(optimizer, step_size=100, gamma=0.99)
 
 # Initialize training
 epoch = 0
@@ -150,8 +150,6 @@ count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
-reference = torch.diag(torch.ones(batch_size)).to(device)
-
 # Initialize tensorboard
 writer = SummaryWriter(comment=COMMENT)
 
@@ -302,11 +300,10 @@ f.close()
 
 
 
-
 # Submission
 
 print('loading best model for submission...')
-#save_path = os.path.join(SAVE_DIR, 'model_56.pt')
+#save_path = os.path.join(SAVE_DIR, 'model_86.pt')
 checkpoint = torch.load(save_path)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
