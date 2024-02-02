@@ -68,7 +68,7 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 5
+nb_epochs = 8
 batch_size = 32
 learning_rate = 5e-5
 
@@ -120,7 +120,7 @@ f.close()
 
 
 # Number of folds for cross-validation
-num_folds = 5  # Adjust as needed
+num_folds = 2  # Adjust as needed
 
 # Initialize k-fold cross-validator
 kf = KFold(n_splits=num_folds, shuffle=True, random_state=seed)
