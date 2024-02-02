@@ -20,7 +20,7 @@ This repository contains the work of Team "Queniaric," consisting of Hugo Quenia
 2. Navigate to the project directory
 
    ```bash
-   unzip -q your-downloaded-file.zip -d ./data
+   unzip -q altegrad-2023-data-challenge.zip -d ./data
    ```
 
 3. Install the required dependencies
