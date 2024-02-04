@@ -11,6 +11,8 @@ Over the public leaderboard, which accounts for around 50% of the test set, our 
    ModelTransformerv2(model_name, n_in=300, nout=768, nhid=100, n_heads=2, dropout=0.75)
    ```
 
+As required by the competition, the code is entirely reproducible and the models are trained on the provided data, meaning that you can reproduce our experiments and results on your own machine by following the instructions below.
+
 ## Installation
 
 ### Prerequisites
