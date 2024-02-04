@@ -29,7 +29,7 @@ Over the public leaderboard, which accounts for around 50% of the test set, our 
 2. Navigate to the project directory
 
    ```bash
-   unzip -q altegrad-2023-data-challenge.zip -d ./data
+   cd ALTeGraD-2023-Data-Challenge
    ```
 
 3. Install the required dependencies
@@ -44,7 +44,7 @@ Over the public leaderboard, which accounts for around 50% of the test set, our 
 5. Extract the downloaded data into the `./data` directory of this project.
 
    ```bash
-   unzip -q your-downloaded-file.zip -d ./data
+   unzip -q altegrad-2023-data-challenge.zip -d ./data
    ```
 
 ## Usage
