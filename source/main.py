@@ -21,7 +21,7 @@ torch.backends.cudnn.deterministic = True
 
 # Setup the text encoder
 #model_name = 'distilbert-base-uncased'
-model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
+#model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'BAAI/bge-reranker-large'
 #model_name = 'BAAI/llm-embedder'
 #model_name = 'facebook/fasttext-language-identification'
@@ -30,7 +30,7 @@ model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'bheshaj/bart-large-cnn-small-xsum-5epochs'
 #model_name = 'google/pegasus-large'
 #model_name = 'recobo/chemical-bert-uncased'
-#model_name = 'allenai/scibert_scivocab_uncased'
+model_name = 'allenai/scibert_scivocab_uncased'
 #model_name = 'gokceuludogan/ChemBERTaLM'
 #model_name = 'seyonec/PubChem10M_SMILES_BPE_450k'
 #model_name = 'alvaroalon2/biobert_chemical_ner'
@@ -57,7 +57,7 @@ val_dataset = GraphTextDataset(root='../data/', gt=gt, split='val', tokenizer=to
 train_dataset = GraphTextDataset(root='../data/', gt=gt, split='train', tokenizer=tokenizer)
 
 # Train on GPU if possible (it is actually almost mandatory considering the size of the model)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 if device != torch.device("cpu"):
     print('================ GPU FOUND ================')
@@ -68,9 +68,9 @@ else:
     print('================ NO GPU ================')
 
 # Training hyperparameters
-nb_epochs = 8
-batch_size = 32
-learning_rate = 5e-5
+nb_epochs = 20
+batch_size = 128
+learning_rate = 1e-4
 
 # Setup the batch loaders
 val_loader = TorchGeoDataLoader(val_dataset, batch_size=batch_size, shuffle=True)
@@ -94,7 +94,7 @@ model = ModelTransformerv2(model_name=model_name, n_in=300, nout=300, nhid=100, 
 
 model.to(device)
 
-MODEL_SURNAME =  model.get_model_surname() + model_name +'n_heads=2,nhid=100,dropout=0.6' +'linear'
+MODEL_SURNAME =  'BetaTest'+ model.get_model_surname() + model_name 
 #MODEL_SURNAME = 'BASELINE_CLASSIC_BS'
 SUBMISSION_DIR = os.path.join('../submissions/', MODEL_SURNAME, '')
 SAVE_DIR = os.path.join('../saves', MODEL_SURNAME, '')
@@ -120,7 +120,7 @@ f.close()
 
 
 # Number of folds for cross-validation
-num_folds = 2  # Adjust as needed
+num_folds = 5  # Adjust as needed
 
 # Initialize k-fold cross-validator
 kf = KFold(n_splits=num_folds, shuffle=True, random_state=seed)
@@ -141,7 +141,7 @@ f.close()
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.999),
                                 weight_decay=0.001)
-scheduler = StepLR(optimizer, step_size=100, gamma=0.99)
+scheduler = StepLR(optimizer, step_size=200, gamma=0.99)
 
 # Initialize training
 epoch = 0

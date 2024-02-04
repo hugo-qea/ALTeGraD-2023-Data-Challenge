@@ -34,7 +34,7 @@ torch.backends.cudnn.deterministic = True
 
 
 # Setup the text encoder
-model_name1 = 'distilbert-base-uncased'
+#model_name = 'distilbert-base-uncased'
 model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'BAAI/bge-reranker-large'
 #model_name = 'BAAI/llm-embedder'
@@ -85,8 +85,10 @@ batch_size = 128
 
 
 models = []
-models.append(ModelGATwMLP(model_name=model_name1, nout=768, nhid=1024, n_heads=8, n_in=300, dropout=0.6))
-models.append(ModelSuperGAT(model_name=model_name1, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.4))
+models.append(ModelGATwMLP(model_name=model_name, nout=768, nhid=768, n_heads=4, n_in=300, dropout=0.75))
+models.append(ModelTransformerv2(model_name=model_name, n_in=300, nout=768, nhid=100, n_heads=2, dropout=0.75))
+models.append(ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=4, dropout=0.6))
+models.append(ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6))
             
 
     
@@ -104,7 +106,8 @@ test_text_loader = TorchDataLoader(test_text_dataset, batch_size=batch_size, shu
 CosineSimilarity = None
 SigmoidSimilarity = None
 
-for (model,k) in enumerate(models):
+for (model,k) in zip(models, range(len(models))):
+    print('================ Model {} ================'.format(k))
     model_name_path = 'model_' + str(k) + '.pt'
     save_path = os.path.join(SAVE_DIR, model_name_path)
     model.to(device)
@@ -124,8 +127,15 @@ for (model,k) in enumerate(models):
         for output in text_model(batch['input_ids'].to(device), 
                              attention_mask=batch['attention_mask'].to(device)):
             text_embeddings.append(output.tolist())
-    CosineSimilarity = CosineSimilarity + cosine_similarity(text_embeddings, graph_embeddings)
-    SigmoidSimilarity = SigmoidSimilarity + sigmoid_kernel(text_embeddings, graph_embeddings)
+    if CosineSimilarity is None:
+        CosineSimilarity = cosine_similarity(text_embeddings, graph_embeddings)
+        SigmoidSimilarity = sigmoid_kernel(text_embeddings, graph_embeddings)
+    else:
+        CosineSimilarity = CosineSimilarity + cosine_similarity(text_embeddings, graph_embeddings)
+        SigmoidSimilarity = SigmoidSimilarity + sigmoid_kernel(text_embeddings, graph_embeddings)
+    
+    del model
+    print('================ Model {} DONE ================'.format(k))
 
 CosineSimilarity = CosineSimilarity/len(models)
 solution = pd.DataFrame(CosineSimilarity)
