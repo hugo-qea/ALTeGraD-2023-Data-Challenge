@@ -82,13 +82,13 @@ train_loader = TorchGeoDataLoader(train_dataset, batch_size=batch_size, shuffle=
 #model = ModelGATConv(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.3) # nout = bert model hidden dim
 #model = ModelAttentiveFP(model_name=model_name, n_in=300, nout=768, nhid=1000, attention_hidden=1000, dropout=0.3) # nout = bert model hidden dim
 #model = ModelGATPerso(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-#model = ModelGATwMLP(model_name=model_name, n_in=300, nout=768, nhid=2048, n_heads=4, dropout=0.6) # nout = bert model hidden dim
-#model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=764, n_heads=4, dropout=0.6) # nout = bert model hidden dim
+#model = ModelGATwMLP(model_name=model_name, nout=768, nhid=768, n_heads=4, n_in=300, dropout=0.75) # nout = bert model hidden dim
+#model = ModelTransformer(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGPS(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=6, dropout=0.6) # nout = bert model hidden dim
 #model = ModelSuperGAT(model_name=model_name, n_in=300, nout=768, nhid=768, n_heads=4, dropout=0.6) # nout = bert model hidden dim
 #model = ModelVGAE(model_name=model_name, n_in=300, nout=768, nhid=300, n_heads=8, dropout=0.6) # nout = bert model hidden dim
 #model = ModelGINE(model_name=model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6) # nout = bert model hidden dim
-model = ModelTransformerv2(model_name=model_name, n_in=300, nout=300, nhid=100, n_heads=2, dropout=0.75) # nout = bert model hidden dim
+model = ModelTransformerv2(model_name=model_name, n_in=300, nout=768, nhid=100, n_heads=2, dropout=0.75) # nout = bert model hidden dim
 
 
 
