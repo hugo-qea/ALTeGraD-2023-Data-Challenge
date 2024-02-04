@@ -114,7 +114,7 @@ if not os.path.exists(SUBMISSION_DIR):
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
     
-"""
+
 # Print summary of the graph encoder 1 model
 encoder = Classifier.get_graph_encoder1()
 x = torch.randn(2000,300).to(device)
@@ -367,11 +367,11 @@ f.write('================\n')
 f.close()
 
 
-"""
+
 # Submission
 
 print('loading best model for submission...')
-save_path = os.path.join(SAVE_DIR, 'model_0.pt')
+#save_path = os.path.join(SAVE_DIR, 'model_0.pt')
 checkpoint = torch.load(save_path)
 Classifier.load_state_dict(checkpoint['model_state_dict'])
 Classifier.eval()
