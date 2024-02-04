@@ -80,10 +80,21 @@ def nce_loss(v1, v2, temperature=1.0, num_neg_samples=10):
 BCEL = torch.nn.BCEWithLogitsLoss()
 
 def negative_sampling_contrastive_loss(v1, v2):
-  logits = torch.matmul(v1,torch.transpose(v2, 0, 1))
-  labels = torch.ones(logits.shape[0], device=v1.device)
-  eye = torch.diag_embed(labels).to(v1.device)
-  return BCEL(logits, eye) + BCEL(torch.transpose(logits, 0, 1), eye)
+    """
+    Computes the contrastive loss for negative sampling.
+
+    Args:
+        v1 (torch.Tensor): The first input tensor of shape (batch_size, embedding_dim).
+        v2 (torch.Tensor): The second input tensor of shape (batch_size, embedding_dim).
+
+    Returns:
+        torch.Tensor: The contrastive loss.
+
+    """
+    logits = torch.matmul(v1, torch.transpose(v2, 0, 1))
+    labels = torch.ones(logits.shape[0], device=v1.device)
+    eye = torch.diag_embed(labels).to(v1.device)
+    return BCEL(logits, eye) + BCEL(torch.transpose(logits, 0, 1), eye)
 
 def compute_score(graph_embeddings, text_embeddings):
     """
@@ -106,7 +117,21 @@ def compute_score(graph_embeddings, text_embeddings):
     score2 = label_ranking_average_precision_score(ground_truth_, sigmoid_kernel_)
     return score1, score2
 
-def scores(x_graph, x_test,reference, batch_size=32, device='cuda'):
+def scores(x_graph, x_test, reference, batch_size=32, device='cuda'):
+    """
+    Calculate the cosine similarity and sigmoid kernel scores between x_graph and x_test.
+
+    Parameters:
+    - x_graph (torch.Tensor): Tensor representing the graph embeddings.
+    - x_test (torch.Tensor): Tensor representing the text embeddings.
+    - reference (torch.Tensor): Tensor representing the reference labels.
+    - batch_size (int): Batch size for calculating the scores. Default is 32.
+    - device (str): Device to perform the calculations on. Default is 'cuda'.
+
+    Returns:
+    - cosineScore (torch.Tensor): Tensor representing the cosine similarity scores.
+    - sigmoidScore (torch.Tensor): Tensor representing the sigmoid kernel scores.
+    """
     cosine_similarity_ = pw.cosine_similarity(x_graph, x_test)
     sigmoid_kernel_ = pw.sigmoid_kernel(x_graph, x_test)
     scoring = MultilabelRankingAveragePrecision(num_labels=batch_size).to(device)

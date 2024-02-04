@@ -612,17 +612,49 @@ class VariationalGCNEncoder(nn.Module):
         self.relu = nn.LeakyReLU()
         
     def forward(self, graph_batch):
-        x = graph_batch.x
-        edge_index = graph_batch.edge_index
-        batch = graph_batch.batch
-        x = self.conv1(x, edge_index)
-        x = self.relu(x)
-        mu = self.conv_mu(x, edge_index)
-        logvar = self.conv_logvar(x, edge_index)
-        return mu, logvar
+            """
+            Forward pass of the graph encoder model.
+
+            Args:
+                graph_batch (torch_geometric.data.Batch): The input graph batch.
+
+            Returns:
+                tuple: A tuple containing the mean (mu) and log variance (logvar) of the encoded graph.
+            """
+            x = graph_batch.x
+            edge_index = graph_batch.edge_index
+            batch = graph_batch.batch
+            x = self.conv1(x, edge_index)
+            x = self.relu(x)
+            mu = self.conv_mu(x, edge_index)
+            logvar = self.conv_logvar(x, edge_index)
+            return mu, logvar
     
     
 class SuperGIN(nn.Module):
+    """
+    SuperGIN module for graph encoding.
+
+    Args:
+        nout (int): Number of output features.
+        nhid (int): Number of hidden units.
+        n_heads (int): Number of attention heads.
+        n_in (int): Number of input features.
+        dropout (float): Dropout rate.
+
+    Attributes:
+        dropout (float): Dropout rate.
+        n_in (int): Number of input features.
+        n_hidden (int): Number of hidden units.
+        n_heads (int): Number of attention heads.
+        n_out (int): Number of output features.
+        conv1 (GINConv): GIN convolutional layer.
+        fc2 (MLP): Fully connected layer for output.
+        fc1 (MLP): Fully connected layer for hidden units.
+        relu (LeakyReLU): Activation function.
+
+    """
+
     def __init__(self, nout, nhid, n_heads, n_in, dropout):
         super(SuperGIN, self).__init__()
         self.dropout = dropout
@@ -637,6 +669,16 @@ class SuperGIN(nn.Module):
         self.relu = nn.LeakyReLU()
 
     def forward(self, graph_batch):
+        """
+        Forward pass of the SuperGIN module.
+
+        Args:
+            graph_batch (Data): Graph data batch.
+
+        Returns:
+            torch.Tensor: Encoded graph representation.
+
+        """
         x = graph_batch.x
         edge_index = graph_batch.edge_index
         batch = graph_batch.batch
@@ -650,6 +692,35 @@ class SuperGIN(nn.Module):
     
 class GraphTransformer(nn.Module):
     def __init__(self, nout, nhid, n_heads, n_in, dropout):
+        """
+        Initialize the GraphTransformer model.
+
+        Args:
+            nout (int): Number of output features.
+            nhid (int): Number of hidden units.
+            n_heads (int): Number of attention heads.
+            n_in (int): Number of input features.
+            dropout (float): Dropout rate.
+
+        Attributes:
+            dropout (float): Dropout rate.
+            n_in (int): Number of input features.
+            n_hidden (int): Number of hidden units.
+            n_heads (int): Number of attention heads.
+            n_out (int): Number of output features.
+            relu (nn.LeakyReLU): LeakyReLU activation function.
+            res1 (ResGatedGraphConv): Residual Gated Graph Convolution layer.
+            Trans1 (TransformerConv): Transformer Convolution layer.
+            norm1 (LayerNorm): Layer Normalization layer.
+            res2 (ResGatedGraphConv): Residual Gated Graph Convolution layer.
+            Trans2 (TransformerConv): Transformer Convolution layer.
+            norm2 (LayerNorm): Layer Normalization layer.
+            res3 (ResGatedGraphConv): Residual Gated Graph Convolution layer.
+            Trans3 (TransformerConv): Transformer Convolution layer.
+            norm3 (LayerNorm): Layer Normalization layer.
+            MLP (MLP): Multi-Layer Perceptron layer.
+
+        """
         super(GraphTransformer, self).__init__()
         self.dropout = dropout
         self.n_in = n_in
@@ -670,32 +741,31 @@ class GraphTransformer(nn.Module):
         
         
     def forward(self, graph_batch):
-            """
-            Forward pass of the graph encoder model.
+        """
+        Forward pass of the graph encoder model.
 
-            Args:
-                graph_batch (torch_geometric.data.Batch): The input graph batch.
+        Args:
+            graph_batch (torch_geometric.data.Batch): The input graph batch.
 
-            Returns:
-                torch.Tensor: The output tensor after passing through the encoder.
-            """
-            x = graph_batch.x
-            edge_index = graph_batch.edge_index
-            batch = graph_batch.batch
-            res = self.res1(x, edge_index)
-            x = self.Trans1(x, edge_index)
-            x = self.norm1(x)
-            x = self.relu(x) + res
-            res = self.res2(x, edge_index)
-            x = self.Trans2(x, edge_index)
-            x = self.norm2(x)
-            x = self.relu(x) + res
-            res = self.res3(x, edge_index)
-            x = self.Trans3(x, edge_index)
-            x = self.norm3(x)
-            x = self.relu(x) + res
-            x = global_mean_pool(x, batch)
-            x = self.MLP(x)
-            
-            
-            return x
+        Returns:
+            torch.Tensor: The output tensor after passing through the encoder.
+        """
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        res = self.res1(x, edge_index)
+        x = self.Trans1(x, edge_index)
+        x = self.norm1(x)
+        x = self.relu(x) + res
+        res = self.res2(x, edge_index)
+        x = self.Trans2(x, edge_index)
+        x = self.norm2(x)
+        x = self.relu(x) + res
+        res = self.res3(x, edge_index)
+        x = self.Trans3(x, edge_index)
+        x = self.norm3(x)
+        x = self.relu(x) + res
+        x = global_mean_pool(x, batch)
+        x = self.MLP(x)
+        
+        return x

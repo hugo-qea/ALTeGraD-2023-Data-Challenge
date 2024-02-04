@@ -2,6 +2,15 @@
 
 This repository contains the work of Team "Queniaric," consisting of Hugo Queniat and Simon Queric, both students from Télécom Paris, for the ALTeGraD 2023 Data Challenge. The challenge details can be found [here](https://www.kaggle.com/competitions/altegrad-2023-data-challenge/).
 
+Over the public leaderboard, which accounts for around 50% of the test set, our best model achieved a score of 0.8993. This score was achieved using a soft voting classifier, which combines the predictions of several models trained on the same data. The models used in the soft voting classifier are the following and all follow similar Attentive structures:
+   ```python
+   model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
+   ModelGATPerso(model_name, n_in=300, nout=768, nhid=1024, n_heads=8, dropout=0.6)
+   ModelGATwMLP(model_name, nout=768, nhid=768, n_heads=4, n_in=300, dropout=0.75)
+   ModelTransformer(model_name, n_in=300, nout=768, nhid=768, n_heads=4, dropout=0.6)
+   ModelTransformerv2(model_name, n_in=300, nout=768, nhid=100, n_heads=2, dropout=0.75)
+   ```
+
 ## Installation
 
 ### Prerequisites
@@ -39,10 +48,28 @@ This repository contains the work of Team "Queniaric," consisting of Hugo Quenia
    ```
 
 ## Usage
-Now that you have installed the dependencies, you can run the project using the following command.
+Now that you have installed the dependencies, you can run the any model you have setup using the following command.
 
    ```bash
    python3 source/main.py
    ```
-Replace your_script.py with the main script or entry point of your project.
+To follow the training of the model, you can also run the following command :
+   ```bash
+   tensorboard --logdir=source/runs
+   ```
+The submissions will be stored in the `./submissions` directory while a summary of the models, its training and the saves of its weights will be stored in the `./saves` directory.
+There are also several other files you can run in case you just want to create a submission after setuping the file :
+   ```bash
+   python3 source/submit.py
+   ```
+
+You can also train a soft voting classifier where all classifiers are trained with the exact same Text Encoder and through the same loops : 
+   ```bash
+   python3 source/voting.py
+   ```
+
+Finally, you can also create a submission created from the averaging of the similarities found by distinct models :
+   ```bash
+   python3 source/submitSoftVoting.py
+   ```
 
