@@ -1,6 +1,6 @@
 # ALTeGraD 2023 Data Challenge
 
-This repository contains the work of Team "Queniaric," consisting of Hugo Queniat and Simon Queric, both students from Télécom Paris, for the ALTeGraD 2023 Data Challenge. The challenge details can be found [here](https://www.kaggle.com/competitions/altegrad-2023-data-challenge/).
+This repository contains the work of Team "Queniaric," consisting of Hugo Queniat and Simon Queric, both students from Télécom Paris and the Master MVA organized by ENS Paris Saclay, for the ALTeGraD 2023 Data Challenge. The challenge details can be found [here](https://www.kaggle.com/competitions/altegrad-2023-data-challenge/).
 
 Over the public leaderboard, which accounts for around 50% of the test set, our best model achieved a score of 0.8993. This score was achieved using a soft voting classifier, which combines the predictions of several models trained on the same data. The models used in the soft voting classifier are the following and all follow similar Attentive structures:
    ```python
