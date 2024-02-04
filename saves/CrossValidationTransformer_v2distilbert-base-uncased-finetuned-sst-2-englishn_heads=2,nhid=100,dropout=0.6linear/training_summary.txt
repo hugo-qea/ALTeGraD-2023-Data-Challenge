@@ -1,0 +1,24 @@
+Training summary
+================
+Presentation:
+Model: CrossValidationTransformer_v2distilbert-base-uncased-finetuned-sst-2-englishn_heads=2,nhid=100,dropout=0.6linear
+Timestamp: 2024-02-03 09:12:44.092828
+Host: gpu3.enst.fr
+================
+Parameters:
+Number of epochs: 20
+Batch size: 128
+Learning rate: 0.0001
+================
+Model Parameters:
+Model name: distilbert-base-uncased-finetuned-sst-2-english
+Number of parameters: 70402381
+================
+Hardware:
+GPU found: Tesla V100S-PCIE-32GB
+GPU memory: 32501.125 MB 
+================
+Training time: 33620.05270266533
+Best validation loss: 0.024579779380667004
+Training loss mean over last 500 iterations: 0.021155337888977558
+================

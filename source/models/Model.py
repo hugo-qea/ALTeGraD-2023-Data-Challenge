@@ -7,7 +7,7 @@ import torch
 
     
 class TextEncoder(nn.Module):
-    def __init__(self, model_name,n_input=768,n_output=300):
+    def __init__(self, model_name,n_input=768,n_output=768):
         """
         Initializes a TextEncoder object.
 

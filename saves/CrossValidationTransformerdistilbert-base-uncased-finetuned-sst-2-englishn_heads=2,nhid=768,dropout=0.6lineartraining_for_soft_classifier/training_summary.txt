@@ -1,0 +1,24 @@
+Training summary
+================
+Presentation:
+Model: CrossValidationTransformerdistilbert-base-uncased-finetuned-sst-2-englishn_heads=2,nhid=768,dropout=0.6lineartraining_for_soft_classifier
+Timestamp: 2024-02-04 11:30:30.070738
+Host: gpu6.enst.fr
+================
+Parameters:
+Number of epochs: 20
+Batch size: 128
+Learning rate: 0.0001
+================
+Model Parameters:
+Model name: distilbert-base-uncased-finetuned-sst-2-english
+Number of parameters: 73021441
+================
+Hardware:
+GPU found: NVIDIA A100-PCIE-40GB
+GPU memory: 40338.312 MB 
+================
+Training time: 39315.84459209442
+Best validation loss: 0.06774918538688396
+Training loss mean over last 500 iterations: 0.053415019479462894
+================
