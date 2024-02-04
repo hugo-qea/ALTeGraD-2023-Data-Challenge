@@ -20,7 +20,7 @@ torch.backends.cudnn.deterministic = True
 
 
 # Setup the text encoder
-#model_name = 'distilbert-base-uncased'
+model_name = 'distilbert-base-uncased'
 #model_name= 'distilbert-base-uncased-finetuned-sst-2-english'
 #model_name = 'BAAI/bge-reranker-large'
 #model_name = 'BAAI/llm-embedder'
@@ -30,7 +30,7 @@ torch.backends.cudnn.deterministic = True
 #model_name = 'bheshaj/bart-large-cnn-small-xsum-5epochs'
 #model_name = 'google/pegasus-large'
 #model_name = 'recobo/chemical-bert-uncased'
-model_name = 'allenai/scibert_scivocab_uncased'
+#model_name = 'allenai/scibert_scivocab_uncased'
 #model_name = 'gokceuludogan/ChemBERTaLM'
 #model_name = 'seyonec/PubChem10M_SMILES_BPE_450k'
 #model_name = 'alvaroalon2/biobert_chemical_ner'
